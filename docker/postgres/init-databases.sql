@@ -1,0 +1,3 @@
+CREATE DATABASE careerstack_backend_v2_development_queue;
+CREATE DATABASE careerstack_backend_v2_test;
+CREATE DATABASE careerstack_backend_v2_test_queue;

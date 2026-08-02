@@ -1,0 +1,33 @@
+name: Deploy production
+
+# Production is never auto-deployed from push or laptop scripts.
+# Trigger only via Actions UI (workflow_dispatch) after staging acceptance.
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: "Image tag already present in Artifact Registry (usually a git SHA)"
+        required: true
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      REGION: us-east5
+      PROJECT_ID: careerstack-prod
+      SERVICE: careerstack-api
+    steps:
+      - name: Refuse until production infra exists
+        run: |
+          echo "Production Cloud Run is intentionally unprovisioned in establish-platform-foundation."
+          echo "This workflow is gated on GitHub Environment 'production' and workflow_dispatch only."
+          echo "Requested image tag: ${{ inputs.image_tag }}"
+          exit 1

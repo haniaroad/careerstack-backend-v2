@@ -1,0 +1,7 @@
+project_id     = "careerstack-staging"
+project_number = "11197815680"
+region         = "us-east5"
+github_org     = "haniaroad"
+# billing_account = "XXXXXX-XXXXXX-XXXXXX"
+budget_amount_usd = 50
+db_tier           = "db-f1-micro"

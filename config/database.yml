@@ -1,0 +1,35 @@
+default: &default
+  adapter: postgresql
+  encoding: unicode
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  host: <%= ENV.fetch("DATABASE_HOST", "localhost") %>
+  username: <%= ENV.fetch("DATABASE_USERNAME", "postgres") %>
+  password: <%= ENV.fetch("DATABASE_PASSWORD", "postgres") %>
+  port: <%= ENV.fetch("DATABASE_PORT", "55432") %>
+
+development:
+  primary:
+    <<: *default
+    database: <%= ENV.fetch("DATABASE_NAME", "careerstack_backend_v2_development") %>
+  queue:
+    <<: *default
+    database: <%= ENV.fetch("QUEUE_DATABASE_NAME", "careerstack_backend_v2_development_queue") %>
+    migrations_paths: db/queue_migrate
+
+test:
+  primary:
+    <<: *default
+    database: <%= ENV.fetch("DATABASE_NAME", "careerstack_backend_v2_test") %>
+  queue:
+    <<: *default
+    database: <%= ENV.fetch("QUEUE_DATABASE_NAME", "careerstack_backend_v2_test_queue") %>
+    migrations_paths: db/queue_migrate
+
+production:
+  primary:
+    <<: *default
+    url: <%= ENV["DATABASE_URL"] %>
+  queue:
+    <<: *default
+    url: <%= ENV.fetch("QUEUE_DATABASE_URL", ENV["DATABASE_URL"]) %>
+    migrations_paths: db/queue_migrate
