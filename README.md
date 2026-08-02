@@ -67,6 +67,9 @@ WIF provider and deploy SA outputs come from `cd infra/envs/staging && tofu outp
 
 - [x] Local Compose: `GET /health` and `GET /ready` succeed
 - [x] Local Compose: unauthenticated non-allowlisted path returns 401 envelope
-- [ ] Staging API: Rails image deployed; `/health` and `/ready` succeed (placeholder hello image is live until first CI deploy; org policy currently blocks `allUsers` invoker)
-- [ ] Staging frontend Netlify site loads
-- [ ] CORS allowlist includes the Netlify staging origin
+- [x] Staging API: Rails image deployed; `/health` and `/ready` succeed (authenticated invoker; org policy blocks `allUsers`)
+- [x] Staging frontend Netlify site loads (`https://careerstack-frontend-v2.netlify.app`)
+- [x] CORS allowlist includes the Netlify staging origin
+- [x] Staging deploy workflow smoke-checks `/health` via WIF identity token
+
+Note: unauthenticated staging calls receive Cloud Run **403** before Rails because public invoker is org-policy blocked. Rails **401** envelope is verified locally.
