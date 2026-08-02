@@ -52,12 +52,15 @@ jobs:
       - name: Smoke check health
         run: |
           URL=$(gcloud run services describe "${{ env.SERVICE }}" --region="${{ env.REGION }}" --format='value(status.url)')
-          for i in 1 2 3 4 5; do
-            if curl -fsS "$URL/health" | grep -q ok; then
+          # Org policy blocks allUsers; smoke with an identity token from the deploy SA.
+          TOKEN=$(gcloud auth print-identity-token --audiences="$URL")
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            if curl -fsS -H "Authorization: Bearer $TOKEN" "$URL/health" | grep -q ok; then
               echo "Health check passed: $URL/health"
               exit 0
             fi
-            sleep 5
+            sleep 6
           done
-          echo "Health check failed"
+          echo "Health check failed for $URL/health"
+          curl -sS -H "Authorization: Bearer $TOKEN" "$URL/health" || true
           exit 1
