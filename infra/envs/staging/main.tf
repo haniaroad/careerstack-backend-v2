@@ -158,12 +158,13 @@ resource "google_secret_manager_secret" "sentry_dsn" {
 
 resource "google_secret_manager_secret_version" "database_url" {
   secret      = google_secret_manager_secret.database_url.id
-  secret_data = "postgres://${google_sql_user.app.name}:${random_password.db.result}@/${google_sql_database.app.name}?host=/cloudsql/${google_sql_database_instance.primary.connection_name}"
+  # Use localhost + host query for Cloud SQL unix socket; empty-host URLs break Ruby URI.
+  secret_data = "postgresql://${google_sql_user.app.name}:${random_password.db.result}@localhost/${google_sql_database.app.name}?host=/cloudsql/${google_sql_database_instance.primary.connection_name}"
 }
 
 resource "google_secret_manager_secret_version" "queue_database_url" {
   secret      = google_secret_manager_secret.queue_database_url.id
-  secret_data = "postgres://${google_sql_user.app.name}:${random_password.db.result}@/${google_sql_database.queue.name}?host=/cloudsql/${google_sql_database_instance.primary.connection_name}"
+  secret_data = "postgresql://${google_sql_user.app.name}:${random_password.db.result}@localhost/${google_sql_database.queue.name}?host=/cloudsql/${google_sql_database_instance.primary.connection_name}"
 }
 
 resource "random_password" "secret_key_base" {
@@ -216,7 +217,7 @@ resource "google_cloud_run_v2_service" "api" {
 
       env {
         name  = "CORS_ORIGINS"
-        value = "https://staging.careerstack.co,http://localhost:5173"
+        value = "https://careerstack-frontend-v2.netlify.app,http://localhost:5173,http://localhost:4173"
       }
 
       env {

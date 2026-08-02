@@ -2,27 +2,40 @@ default: &default
   adapter: postgresql
   encoding: unicode
   pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
-  host: <%= ENV.fetch("DATABASE_HOST", "localhost") %>
-  username: <%= ENV.fetch("DATABASE_USERNAME", "postgres") %>
-  password: <%= ENV.fetch("DATABASE_PASSWORD", "postgres") %>
-  port: <%= ENV.fetch("DATABASE_PORT", "55432") %>
 
 development:
   primary:
     <<: *default
     database: <%= ENV.fetch("DATABASE_NAME", "careerstack_backend_v2_development") %>
+    host: <%= ENV.fetch("DATABASE_HOST", "localhost") %>
+    username: <%= ENV.fetch("DATABASE_USERNAME", "postgres") %>
+    password: <%= ENV.fetch("DATABASE_PASSWORD", "postgres") %>
+    # Host-mapped Compose Postgres uses 55432; in-container Compose uses 5432.
+    port: <%= ENV.fetch("DATABASE_PORT", "55432") %>
   queue:
     <<: *default
     database: <%= ENV.fetch("QUEUE_DATABASE_NAME", "careerstack_backend_v2_development_queue") %>
+    host: <%= ENV.fetch("DATABASE_HOST", "localhost") %>
+    username: <%= ENV.fetch("DATABASE_USERNAME", "postgres") %>
+    password: <%= ENV.fetch("DATABASE_PASSWORD", "postgres") %>
+    port: <%= ENV.fetch("DATABASE_PORT", "55432") %>
     migrations_paths: db/queue_migrate
 
 test:
   primary:
     <<: *default
     database: <%= ENV.fetch("DATABASE_NAME", "careerstack_backend_v2_test") %>
+    host: <%= ENV.fetch("DATABASE_HOST", "localhost") %>
+    username: <%= ENV.fetch("DATABASE_USERNAME", "postgres") %>
+    password: <%= ENV.fetch("DATABASE_PASSWORD", "postgres") %>
+    port: <%= ENV.fetch("DATABASE_PORT", "55432") %>
   queue:
     <<: *default
     database: <%= ENV.fetch("QUEUE_DATABASE_NAME", "careerstack_backend_v2_test_queue") %>
+    host: <%= ENV.fetch("DATABASE_HOST", "localhost") %>
+    username: <%= ENV.fetch("DATABASE_USERNAME", "postgres") %>
+    password: <%= ENV.fetch("DATABASE_PASSWORD", "postgres") %>
+    port: <%= ENV.fetch("DATABASE_PORT", "55432") %>
     migrations_paths: db/queue_migrate
 
 production:
