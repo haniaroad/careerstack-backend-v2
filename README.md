@@ -36,6 +36,10 @@ Compose starts `api` + `postgres`. The `web` service name is reserved for the fr
 | `SECRET_KEY_BASE` | Rails secret (required in production) |
 | `SENTRY_DSN` | Optional error reporting |
 | `SENTRY_ENVIRONMENT` | Sentry environment label |
+| `FIREBASE_PROJECT_ID` | Staging Firebase project ID (required when `FIREBASE_AUTH_STUB` is false) |
+| `FIREBASE_AUTH_STUB` | When `true` (default in development/test), accept `Bearer test:<uid>:<email>` tokens |
+
+Identity APIs live under `/api/v1/*` and require a verified Firebase ID token (or stub token locally). Seed taxonomies with `bin/rails db:seed`.
 
 No credentials are committed. `.env` is gitignored; use `.env.example` placeholders only.
 

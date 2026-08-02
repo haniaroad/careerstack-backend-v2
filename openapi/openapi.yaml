@@ -1,8 +1,8 @@
 openapi: 3.0.3
 info:
   title: CareerStack API
-  version: 0.1.0
-  description: Platform foundation contract for health, readiness, and errors.
+  version: 0.2.0
+  description: Identity, onboarding, and workspace APIs plus platform health checks.
 servers:
   - url: http://localhost:3000
     description: Local Compose
@@ -37,7 +37,199 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/NotReadyStatus"
+  /api/v1/session:
+    get:
+      operationId: getSession
+      summary: Current authenticated session
+      responses:
+        "200":
+          description: Session payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/v1/onboarding/independent:
+    post:
+      operationId: completeIndependentOnboarding
+      summary: Complete independent adult onboarding
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IndependentOnboardingRequest"
+      responses:
+        "201":
+          description: Onboarding completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+  /api/v1/onboarding/organization_invited:
+    post:
+      operationId: completeOrganizationInvitedOnboarding
+      summary: Complete organization-invited onboarding
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InvitedOnboardingRequest"
+      responses:
+        "201":
+          description: Onboarding completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+  /api/v1/workspaces:
+    get:
+      operationId: listWorkspaces
+      summary: List usable workspaces
+      responses:
+        "200":
+          description: Workspace list
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+  /api/v1/workspaces/switch:
+    post:
+      operationId: switchWorkspace
+      summary: Switch active workspace
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [workspace_id]
+              properties:
+                workspace_id:
+                  type: string
+                  format: uuid
+      responses:
+        "200":
+          description: Updated session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+  /api/v1/organizations:
+    post:
+      operationId: createOrganization
+      summary: Create organization and become first admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateOrganizationRequest"
+      responses:
+        "201":
+          description: Organization created
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+  /api/v1/invitations:
+    post:
+      operationId: createInvitation
+      summary: Create organization invitation (admin/manager)
+      responses:
+        "201":
+          description: Invitation created with one-time token
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/v1/invitations/{token}:
+    get:
+      operationId: getInvitation
+      summary: Preview invitation by token
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Invitation preview
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+  /api/v1/invitations/{token}/accept:
+    post:
+      operationId: acceptInvitation
+      summary: Accept invitation after onboarding
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Membership created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+  /api/v1/taxonomies:
+    get:
+      operationId: listTaxonomies
+      summary: List controlled taxonomies
+      responses:
+        "200":
+          description: Taxonomy catalog
+  /api/v1/age_visibility:
+    patch:
+      operationId: updateAgeVisibility
+      summary: Confirm or reverse age-up public visibility
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action_type]
+              properties:
+                action_type:
+                  type: string
+                  enum: [confirm, reverse]
+      responses:
+        "200":
+          description: Updated session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        "403":
+          $ref: "#/components/responses/Forbidden"
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Firebase ID token
   schemas:
     HealthStatus:
       type: object
@@ -76,6 +268,99 @@ components:
               type: string
             request_id:
               type: string
+    Session:
+      type: object
+      required: [user, workspaces, age_visibility, program_filter]
+      properties:
+        user:
+          type: object
+        profile:
+          type: object
+          nullable: true
+          description: Never includes date_of_birth
+        workspaces:
+          type: array
+          items:
+            $ref: "#/components/schemas/Workspace"
+        active_workspace_id:
+          type: string
+          format: uuid
+          nullable: true
+        can_access_org_admin:
+          type: boolean
+        age_visibility:
+          type: object
+        program_filter:
+          type: object
+    Workspace:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        kind:
+          type: string
+          enum: [personal, organization]
+        name:
+          type: string
+        organization_id:
+          type: string
+          format: uuid
+          nullable: true
+    IndependentOnboardingRequest:
+      type: object
+      required:
+        [age_attested, terms_accepted, display_name, country, state_region, career_goal, experience_level]
+      properties:
+        age_attested:
+          type: boolean
+        terms_accepted:
+          type: boolean
+        display_name:
+          type: string
+        country:
+          type: string
+        state_region:
+          type: string
+        career_goal:
+          type: string
+        experience_level:
+          type: string
+          enum: [beginner, intermediate, advanced]
+        current_role_term_id:
+          type: string
+          format: uuid
+        target_role_term_id:
+          type: string
+          format: uuid
+    InvitedOnboardingRequest:
+      allOf:
+        - $ref: "#/components/schemas/IndependentOnboardingRequest"
+        - type: object
+          required: [invitation_token, date_of_birth, terms_accepted]
+          properties:
+            invitation_token:
+              type: string
+            date_of_birth:
+              type: string
+              format: date
+              description: Stored server-side only; never returned
+    CreateOrganizationRequest:
+      type: object
+      required: [name, country, state_region]
+      properties:
+        name:
+          type: string
+        structure_term_id:
+          type: string
+          format: uuid
+        country:
+          type: string
+        state_region:
+          type: string
+        primary_goal_term_id:
+          type: string
+          format: uuid
   responses:
     NotFound:
       description: Resource not found
@@ -89,3 +374,17 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/ErrorEnvelope"
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    UnprocessableEntity:
+      description: Validation failed
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+security:
+  - bearerAuth: []
