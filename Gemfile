@@ -12,6 +12,9 @@ gem "solid_queue"
 gem "sentry-ruby"
 gem "sentry-rails"
 
+# Firebase ID token verification (RS256 via Google JWKS)
+gem "jwt"
+
 group :development, :test do
   gem "debug", platforms: %i[ mri windows ], require: "debug/prelude"
   gem "brakeman", require: false

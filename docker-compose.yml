@@ -28,6 +28,8 @@ services:
       QUEUE_DATABASE_URL: postgres://postgres:postgres@postgres:5432/careerstack_backend_v2_development_queue
       CORS_ORIGINS: http://localhost:5173,http://localhost:4173
       SENTRY_DSN: ""
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:-}
+      FIREBASE_AUTH_STUB: ${FIREBASE_AUTH_STUB:-true}
     depends_on:
       postgres:
         condition: service_healthy
