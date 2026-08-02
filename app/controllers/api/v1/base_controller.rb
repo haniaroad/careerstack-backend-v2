@@ -16,17 +16,6 @@ module Api
       def render_forbidden(message, code: "forbidden")
         render_error(code: code, message: message, status: :forbidden)
       end
-
-      # Requires that onboarding is finished before a product action runs, so
-      # half-registered accounts cannot create organizations or join orgs.
-      def require_completed_onboarding!
-        return unless current_user.pending_onboarding?
-
-        raise DomainError.new(
-          "Complete onboarding before continuing",
-          code: "onboarding_required"
-        )
-      end
     end
   end
 end

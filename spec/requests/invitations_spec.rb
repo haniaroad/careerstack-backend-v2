@@ -100,6 +100,30 @@ RSpec.describe "Invitations", type: :request do
       expect(response).to have_http_status(:unprocessable_entity)
       expect(response.parsed_body.dig("error", "message")).to match(/role must be one of/)
     end
+
+    it "lets an admin appoint another admin" do
+      post "/api/v1/invitations",
+           params: { organization_id: organization.id, role: "admin" },
+           headers: headers_for(admin),
+           as: :json
+
+      expect(response).to have_http_status(:created)
+      expect(response.parsed_body.dig("invitation", "role")).to eq("admin")
+    end
+
+    it "stops a manager from inviting above their own role" do
+      manager = create_onboarded_adult(email: "manager@example.com")
+      create_membership(organization: organization, user: manager, role: OrganizationMembership::MANAGER)
+
+      post "/api/v1/invitations",
+           params: { organization_id: organization.id, role: "admin" },
+           headers: headers_for(manager),
+           as: :json
+
+      expect(response).to have_http_status(:forbidden)
+      expect(response.parsed_body.dig("error", "code")).to eq("forbidden")
+      expect(Invitation.count).to eq(0)
+    end
   end
 
   describe "GET /api/v1/invitations/:token" do

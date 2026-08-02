@@ -6,6 +6,13 @@ module Invitations
   class Create
     MAX_TTL = 90.days
 
+    # Nobody may invite above their own level: only admins can appoint admins
+    # and managers, while managers are limited to participants.
+    ASSIGNABLE_ROLES = {
+      OrganizationMembership::ADMIN => OrganizationMembership::ROLES,
+      OrganizationMembership::MANAGER => [ OrganizationMembership::PARTICIPANT ].freeze
+    }.freeze
+
     Result = Struct.new(:invitation, :raw_token, keyword_init: true)
 
     def self.call(actor:, params:)
@@ -36,7 +43,7 @@ module Invitations
         program: resolve_program(organization),
         email: @params[:email],
         created_by_user: @actor,
-        role: resolve_role,
+        role: resolve_role(membership),
         expires_at: resolve_expiry
       )
 
@@ -52,9 +59,20 @@ module Invitations
       organization.programs.find(program_id)
     end
 
-    def resolve_role
+    def resolve_role(membership)
       role = @params[:role].presence || OrganizationMembership::PARTICIPANT
-      raise Error, "role must be one of #{OrganizationMembership::ROLES.join(', ')}" unless OrganizationMembership::ROLES.include?(role)
+      unless OrganizationMembership::ROLES.include?(role)
+        raise Error, "role must be one of #{OrganizationMembership::ROLES.join(', ')}"
+      end
+
+      assignable = ASSIGNABLE_ROLES.fetch(membership.role, [])
+      unless assignable.include?(role)
+        raise Error.new(
+          "Your organization role cannot invite a #{role}",
+          code: "forbidden",
+          status: :forbidden
+        )
+      end
 
       role
     end

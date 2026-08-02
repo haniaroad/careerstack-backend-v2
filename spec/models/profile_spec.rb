@@ -42,8 +42,7 @@ RSpec.describe Profile do
     end
 
     it "still stores the value for server-side age derivation" do
-      expect(profile.date_of_birth).to eq(Date.new(2011, 6, 15))
-      expect(profile).to be_date_of_birth_recorded
+      expect(profile.reload.date_of_birth).to eq(Date.new(2011, 6, 15))
     end
   end
 

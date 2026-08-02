@@ -37,15 +37,30 @@ Compose starts `api` + `postgres`. The `web` service name is reserved for the fr
 | `SENTRY_DSN` | Optional error reporting |
 | `SENTRY_ENVIRONMENT` | Sentry environment label |
 | `FIREBASE_PROJECT_ID` | Staging Firebase project ID (required when `FIREBASE_AUTH_STUB` is false) |
-| `FIREBASE_AUTH_STUB` | When `true` (default in development/test), accept `Bearer test:<uid>:<email>` tokens |
-
-Identity APIs live under `/api/v1/*` and require a verified Firebase ID token (or stub token locally). Seed taxonomies with `bin/rails db:seed`.
+| `FIREBASE_AUTH_STUB` | Accept `Bearer test:<uid>:<email>` stub tokens instead of verifying real Firebase ID tokens |
 
 No credentials are committed. `.env` is gitignored; use `.env.example` placeholders only.
+
+## Identity API
+
+Identity, onboarding, and workspace endpoints live under `/api/v1/*`. Every path except `/health`, `/ready`, and `/up` requires `Authorization: Bearer <Firebase ID token>`; the first verified token for an email creates a CareerStack account in `pending_onboarding`. See [`openapi/openapi.yaml`](openapi/openapi.yaml) for the full contract.
+
+`FIREBASE_AUTH_STUB` defaults to on in test, and in development until `FIREBASE_PROJECT_ID` is set. It is ignored in production, where real Firebase ID tokens are always verified against Google's JWKS. With the stub enabled:
+
+```bash
+curl -s http://localhost:3000/api/v1/session \
+  -H "Authorization: Bearer test:local-uid-1:you@example.com"
+```
+
+Controlled taxonomies (roles, experience levels, organization structures and goals) are database-backed with stable term IDs. Seed or re-seed them idempotently with `bin/rails db:seed`.
+
+Date of birth is collected only on the organization-invited onboarding path. It is never returned by any endpoint, is filtered from request logs, and only the derived `age_status` (`adult` | `minor` | `unknown`) is exposed.
 
 ## Background jobs
 
 Solid Queue is installed with a separate queue database connection and schema. **No worker process is deployed yet** — that lands with the first background job change. Locally you can run `bin/jobs` when needed.
+
+`AgeUpDetectionJob` is registered in [`config/recurring.yml`](config/recurring.yml) to run daily in production. It promotes organization-invited minors who have reached 18 in their organization's timezone, grants the Personal workspace and personal trial credit that were withheld, and flags them for visibility review so their profile stays private until they explicitly confirm. Run it on demand with `bin/rails runner AgeUpDetectionJob.perform_now`.
 
 ## Tests and quality
 
@@ -58,6 +73,14 @@ bin/brakeman --no-pager
 bundle exec bundler-audit check --update
 bin/rails openapi:validate
 ```
+
+Specs run against the test database configured in `config/database.yml`, which defaults to the Compose Postgres on host port 55432. To run against a Postgres already listening on 5432 instead, override the connection for the command:
+
+```bash
+DATABASE_PORT=5432 DATABASE_USERNAME="$(whoami)" DATABASE_PASSWORD="" bundle exec rspec
+```
+
+Specs need no Firebase credentials: `spec/support/auth_helpers.rb` mints stub tokens, and `spec/support/identity_fixtures.rb` provides inline record builders (this project intentionally does not use FactoryBot).
 
 ## Infrastructure
 

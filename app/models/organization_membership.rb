@@ -17,18 +17,9 @@ class OrganizationMembership < ApplicationRecord
   validates :user_id, uniqueness: { scope: :organization_id }
   validate :program_belongs_to_organization
 
-  def admin?
-    role == ADMIN
-  end
-
   # Roles allowed to reach organization administration surfaces.
   def staff?
     role.in?(STAFF_ROLES)
-  end
-
-  # A null program filter means "all programs" (D-9).
-  def program_filter_all?
-    program_filter_program_id.nil?
   end
 
   private

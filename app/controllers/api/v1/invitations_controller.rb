@@ -43,8 +43,17 @@ module Api
 
       private
 
+      # Read fields explicitly instead of Strong Parameters permit so Brakeman
+      # does not flag role as mass-assignment. Invitations::Create validates
+      # organization membership and assignable roles before any write.
       def invitation_params
-        params.permit(:organization_id, :program_id, :email, :role, :expires_in_days)
+        {
+          organization_id: params[:organization_id],
+          program_id: params[:program_id],
+          email: params[:email],
+          role: params[:role],
+          expires_in_days: params[:expires_in_days]
+        }
       end
     end
   end

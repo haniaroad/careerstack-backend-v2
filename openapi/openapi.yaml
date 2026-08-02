@@ -2,7 +2,18 @@ openapi: 3.0.3
 info:
   title: CareerStack API
   version: 0.2.0
-  description: Identity, onboarding, and workspace APIs plus platform health checks.
+  description: |
+    Platform foundation plus identity, onboarding, and workspace contracts.
+
+    Authentication: every endpoint except `/health`, `/ready`, and `/up` requires a
+    verified Firebase ID token in `Authorization: Bearer <token>`. The first
+    verified token for an email bootstraps a CareerStack account in
+    `pending_onboarding`. Locally and in CI, `FIREBASE_AUTH_STUB=true` accepts
+    `Bearer test:<firebase_uid>:<email>` instead.
+
+    Privacy: full date of birth is accepted only by
+    `POST /api/v1/onboarding/organization_invited`. It is never returned by any
+    endpoint; only the derived `age_status` is exposed.
 servers:
   - url: http://localhost:3000
     description: Local Compose
@@ -11,6 +22,7 @@ paths:
     get:
       operationId: getHealth
       summary: Liveness health check
+      tags: [Platform]
       security: []
       responses:
         "200":
@@ -23,6 +35,7 @@ paths:
     get:
       operationId: getReady
       summary: Readiness check including database connectivity
+      tags: [Platform]
       security: []
       responses:
         "200":
@@ -41,6 +54,11 @@ paths:
     get:
       operationId: getSession
       summary: Current authenticated session
+      description: |
+        Returns the account, profile, workspace grants, active workspace,
+        organization admin access, program filter, and age visibility flags. The
+        first call for a newly verified email creates the account.
+      tags: [Session]
       responses:
         "200":
           description: Session payload
@@ -56,6 +74,12 @@ paths:
     post:
       operationId: completeIndependentOnboarding
       summary: Complete independent adult onboarding
+      description: |
+        Requires age self-attestation (18+) and terms acceptance plus the minimum
+        profile. On success the account becomes `active` with `age_status: adult`,
+        receives a Personal workspace, and receives one personal trial credit.
+        Retrying returns `already_onboarded` and grants nothing further.
+      tags: [Onboarding]
       requestBody:
         required: true
         content:
@@ -71,12 +95,21 @@ paths:
                 $ref: "#/components/schemas/Session"
         "401":
           $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "422":
           $ref: "#/components/responses/UnprocessableEntity"
   /api/v1/onboarding/organization_invited:
     post:
       operationId: completeOrganizationInvitedOnboarding
       summary: Complete organization-invited onboarding
+      description: |
+        Requires a usable invitation token, terms acceptance, full date of birth,
+        and the minimum profile. Date of birth is stored server-side and reduced
+        to `age_status` using the organization's timezone; it is never returned.
+        Adults additionally receive a Personal workspace and one personal trial
+        credit. Minors and unknown-age users receive neither.
+      tags: [Onboarding]
       requestBody:
         required: true
         content:
@@ -92,21 +125,48 @@ paths:
                 $ref: "#/components/schemas/Session"
         "401":
           $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "422":
-          $ref: "#/components/responses/UnprocessableEntity"
+          description: |
+            Validation failed. `error.code` is one of `validation_error`,
+            `already_onboarded`, `invalid_invitation`, or `below_minimum_age`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
   /api/v1/workspaces:
     get:
       operationId: listWorkspaces
-      summary: List usable workspaces
+      summary: List the workspaces the caller may use
+      description: Personal first when granted, then one workspace per organization membership.
+      tags: [Workspaces]
       responses:
         "200":
           description: Workspace list
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [workspaces]
+                properties:
+                  workspaces:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Workspace"
         "401":
           $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
   /api/v1/workspaces/switch:
     post:
       operationId: switchWorkspace
-      summary: Switch active workspace
+      summary: Switch the active workspace
+      description: |
+        Membership is revalidated server-side on every call. A workspace the
+        caller does not belong to is rejected with 403 and the active workspace is
+        left unchanged.
+      tags: [Workspaces]
       requestBody:
         required: true
         content:
@@ -120,19 +180,30 @@ paths:
                   format: uuid
       responses:
         "200":
-          description: Updated session
+          description: Updated session with the new active workspace
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Session"
-        "403":
-          $ref: "#/components/responses/Forbidden"
         "401":
           $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
   /api/v1/organizations:
     post:
       operationId: createOrganization
-      summary: Create organization and become first admin
+      summary: Create an organization and become its first administrator
+      description: |
+        Available to verified adults who have completed onboarding. Creates the
+        organization and its workspace, makes the caller an `admin`, and grants
+        three pooled organization trial credits. The trial is limited to one grant
+        per adult ever: a second organization is created with
+        `organization_trial_granted: false`. No personal credit is consumed.
+      tags: [Organizations]
       requestBody:
         required: true
         content:
@@ -142,77 +213,153 @@ paths:
       responses:
         "201":
           description: Organization created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateOrganizationResponse"
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
-          $ref: "#/components/responses/Forbidden"
+          description: Caller is suspended, a minor, or of unknown age
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
         "422":
           $ref: "#/components/responses/UnprocessableEntity"
   /api/v1/invitations:
     post:
       operationId: createInvitation
-      summary: Create organization invitation (admin/manager)
+      summary: Create an organization invitation
+      description: |
+        Restricted to organization `admin` and `manager` members. The raw token is
+        returned only in this response; the server stores just its SHA-256 digest
+        and cannot reproduce it. Inviting never consumes credits.
+      tags: [Invitations]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateInvitationRequest"
       responses:
         "201":
-          description: Invitation created with one-time token
+          description: Invitation created, including the one-time raw token
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [invitation]
+                properties:
+                  invitation:
+                    $ref: "#/components/schemas/CreatedInvitation"
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
   /api/v1/invitations/{token}:
     get:
       operationId: getInvitation
-      summary: Preview invitation by token
+      summary: Preview an invitation before accepting it
+      description: |
+        Unknown, expired, and already-accepted tokens all return the same
+        `invalid_invitation` response so tokens cannot be probed.
+      tags: [Invitations]
       parameters:
-        - name: token
-          in: path
-          required: true
-          schema:
-            type: string
+        - $ref: "#/components/parameters/InvitationToken"
       responses:
         "200":
           description: Invitation preview
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [invitation]
+                properties:
+                  invitation:
+                    $ref: "#/components/schemas/InvitationPreview"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "422":
-          $ref: "#/components/responses/UnprocessableEntity"
+          $ref: "#/components/responses/InvalidInvitation"
   /api/v1/invitations/{token}/accept:
     post:
       operationId: acceptInvitation
-      summary: Accept invitation after onboarding
+      summary: Accept an invitation as an already-onboarded user
+      description: |
+        For accounts that have completed onboarding. Accounts still in
+        `pending_onboarding` use the organization-invited onboarding endpoint
+        instead, which also collects date of birth. An existing membership keeps
+        its current role. Accepting never consumes credits.
+      tags: [Invitations]
       parameters:
-        - name: token
-          in: path
-          required: true
-          schema:
-            type: string
+        - $ref: "#/components/parameters/InvitationToken"
       responses:
         "200":
-          description: Membership created
+          description: Membership created and session returned
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Session"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "422":
-          $ref: "#/components/responses/UnprocessableEntity"
+          description: "`error.code` is `invalid_invitation` or `onboarding_required`."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
   /api/v1/taxonomies:
     get:
       operationId: listTaxonomies
-      summary: List controlled taxonomies
+      summary: List controlled taxonomies and their terms
+      description: |
+        Returns `roles`, `experience_levels`, `organization_structures`, and
+        `organization_goals`. Term IDs are stable across environments and safe to
+        cache. Terms are ordered for display, with any `is_other` term last.
+      tags: [Taxonomies]
       responses:
         "200":
           description: Taxonomy catalog
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [taxonomies]
+                properties:
+                  taxonomies:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Taxonomy"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
   /api/v1/age_visibility:
     patch:
       operationId: updateAgeVisibility
-      summary: Confirm or reverse age-up public visibility
+      summary: Confirm or reverse public identity after aging up
+      description: |
+        Available to adults only. `confirm` clears the pending visibility review
+        and makes public identity visible; `reverse` withdraws it again.
+      tags: [Onboarding]
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [action_type]
+              required: [decision]
               properties:
-                action_type:
+                decision:
                   type: string
                   enum: [confirm, reverse]
       responses:
@@ -222,14 +369,30 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Session"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
         "403":
-          $ref: "#/components/responses/Forbidden"
+          description: Caller is suspended, a minor, or of unknown age
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
 components:
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: Firebase ID token
+  parameters:
+    InvitationToken:
+      name: token
+      in: path
+      required: true
+      description: Raw invitation token as delivered to the invitee.
+      schema:
+        type: string
   schemas:
     HealthStatus:
       type: object
@@ -264,36 +427,27 @@ components:
           properties:
             code:
               type: string
+              description: |
+                Stable machine-readable code, for example `unauthenticated`,
+                `account_suspended`, `forbidden`, `not_found`, `validation_error`,
+                `already_onboarded`, `invalid_invitation`, `below_minimum_age`, or
+                `onboarding_required`.
             message:
               type: string
             request_id:
               type: string
-    Session:
-      type: object
-      required: [user, workspaces, age_visibility, program_filter]
-      properties:
-        user:
-          type: object
-        profile:
-          type: object
-          nullable: true
-          description: Never includes date_of_birth
-        workspaces:
-          type: array
-          items:
-            $ref: "#/components/schemas/Workspace"
-        active_workspace_id:
-          type: string
-          format: uuid
-          nullable: true
-        can_access_org_admin:
-          type: boolean
-        age_visibility:
-          type: object
-        program_filter:
-          type: object
+    AgeStatus:
+      type: string
+      nullable: true
+      enum: [adult, minor, unknown]
+      description: |
+        Derived from date of birth for organization-invited users and from age
+        self-attestation for independent users. Null before onboarding completes.
+        Full date of birth is never exposed.
     Workspace:
       type: object
+      nullable: true
+      required: [id, kind, name]
       properties:
         id:
           type: string
@@ -307,15 +461,179 @@ components:
           type: string
           format: uuid
           nullable: true
-    IndependentOnboardingRequest:
+          description: Null for Personal workspaces.
+    SessionUser:
+      type: object
+      required: [id, email, status, onboarding_complete]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        status:
+          type: string
+          enum: [pending_onboarding, active, suspended]
+        age_status:
+          $ref: "#/components/schemas/AgeStatus"
+        onboarding_path:
+          type: string
+          nullable: true
+          enum: [independent, organization_invited]
+        onboarding_complete:
+          type: boolean
+        terms_accepted_at:
+          type: string
+          format: date-time
+          nullable: true
+        personal_trial_granted:
+          type: boolean
+        organization_trial_granted:
+          type: boolean
+        public_identity_visible:
+          type: boolean
+          description: False for minors, unknown age, and adults pending visibility review.
+    SessionProfile:
+      type: object
+      nullable: true
+      description: |
+        Minimum profile plus optional fields. Full date of birth is deliberately
+        absent from this schema and from every response.
+      required: [display_name, country, state_region, career_goal, experience_level]
+      properties:
+        display_name:
+          type: string
+        country:
+          type: string
+        state_region:
+          type: string
+        career_goal:
+          type: string
+        current_role_term_id:
+          type: string
+          format: uuid
+          nullable: true
+        current_role_other:
+          type: string
+          nullable: true
+        experience_level:
+          type: string
+          enum: [beginner, intermediate, advanced]
+        target_role_term_id:
+          type: string
+          format: uuid
+          nullable: true
+        target_role_other:
+          type: string
+          nullable: true
+        bio:
+          type: string
+          nullable: true
+        image_url:
+          type: string
+          nullable: true
+        github_url:
+          type: string
+          nullable: true
+        linkedin_url:
+          type: string
+          nullable: true
+        portfolio_url:
+          type: string
+          nullable: true
+        interests:
+          type: array
+          maxItems: 10
+          items:
+            type: string
+    AgeVisibility:
+      type: object
+      required: [visibility_review_required, public_identity_confirmed]
+      properties:
+        visibility_review_required:
+          type: boolean
+          description: True after age-up detection until the user makes a choice.
+        public_identity_confirmed:
+          type: boolean
+        confirmed_at:
+          type: string
+          format: date-time
+          nullable: true
+    ProgramFilter:
+      type: object
+      nullable: true
+      description: |
+        Present only when the active workspace is an Organization workspace, and
+        null otherwise. Programs are context rather than workspaces, and the
+        filter defaults to all programs.
+      required: [mode, available_programs]
+      properties:
+        mode:
+          type: string
+          enum: [all, program]
+        program_id:
+          type: string
+          format: uuid
+          nullable: true
+        available_programs:
+          type: array
+          items:
+            type: object
+            required: [id, name]
+            properties:
+              id:
+                type: string
+                format: uuid
+              name:
+                type: string
+    Session:
       type: object
       required:
-        [age_attested, terms_accepted, display_name, country, state_region, career_goal, experience_level]
+        - user
+        - profile
+        - workspaces
+        - active_workspace
+        - can_access_org_admin
+        - age_visibility
+        - program_filter
       properties:
-        age_attested:
+        user:
+          $ref: "#/components/schemas/SessionUser"
+        profile:
+          $ref: "#/components/schemas/SessionProfile"
+        workspaces:
+          type: array
+          description: Personal first when granted, then one per organization membership.
+          items:
+            $ref: "#/components/schemas/Workspace"
+        active_workspace_id:
+          type: string
+          format: uuid
+          nullable: true
+        active_workspace:
+          $ref: "#/components/schemas/Workspace"
+        can_access_org_admin:
           type: boolean
-        terms_accepted:
-          type: boolean
+          description: True when the active workspace is an organization the caller administers or manages.
+        age_visibility:
+          $ref: "#/components/schemas/AgeVisibility"
+        program_filter:
+          $ref: "#/components/schemas/ProgramFilter"
+    MinimumProfileFields:
+      type: object
+      description: |
+        Minimum profile required before workspace access. Optional fields
+        (`bio`, `image_url`, `interests`, `github_url`, `linkedin_url`,
+        `portfolio_url`) may all be omitted. Each role accepts either a taxonomy
+        term id or, when the Other term is chosen, matching free text.
+      required:
+        - display_name
+        - country
+        - state_region
+        - career_goal
+        - experience_level
+      properties:
         display_name:
           type: string
         country:
@@ -330,37 +648,223 @@ components:
         current_role_term_id:
           type: string
           format: uuid
+          description: Must be a term from the `roles` taxonomy.
+        current_role_other:
+          type: string
+          description: Required instead of a term id only when the Other role is selected.
         target_role_term_id:
           type: string
           format: uuid
+        target_role_other:
+          type: string
+        bio:
+          type: string
+        image_url:
+          type: string
+        github_url:
+          type: string
+        linkedin_url:
+          type: string
+        portfolio_url:
+          type: string
+        interests:
+          type: array
+          maxItems: 10
+          description: Extra tags beyond the first ten are discarded.
+          items:
+            type: string
+    IndependentOnboardingRequest:
+      allOf:
+        - $ref: "#/components/schemas/MinimumProfileFields"
+        - type: object
+          required: [age_attested, terms_accepted]
+          properties:
+            age_attested:
+              type: boolean
+              description: Must be true; the user attests to being at least 18.
+            terms_accepted:
+              type: boolean
+              description: Must be true.
     InvitedOnboardingRequest:
       allOf:
-        - $ref: "#/components/schemas/IndependentOnboardingRequest"
+        - $ref: "#/components/schemas/MinimumProfileFields"
         - type: object
-          required: [invitation_token, date_of_birth, terms_accepted]
+          required: [invitation_token, terms_accepted, date_of_birth]
           properties:
             invitation_token:
               type: string
+            terms_accepted:
+              type: boolean
             date_of_birth:
               type: string
               format: date
-              description: Stored server-side only; never returned
+              description: |
+                ISO 8601 (YYYY-MM-DD). Write-only: stored server-side, excluded
+                from logs, and never returned by any endpoint. Ages under 13 are
+                refused with `below_minimum_age`.
     CreateOrganizationRequest:
       type: object
+      description: |
+        Structure and primary goal each accept either a taxonomy term id or, when
+        the Other term is chosen, matching free text.
       required: [name, country, state_region]
       properties:
         name:
           type: string
-        structure_term_id:
-          type: string
-          format: uuid
         country:
           type: string
         state_region:
           type: string
+        structure_term_id:
+          type: string
+          format: uuid
+          description: Must be a term from the `organization_structures` taxonomy.
+        structure_other:
+          type: string
         primary_goal_term_id:
           type: string
           format: uuid
+          description: Must be a term from the `organization_goals` taxonomy.
+        primary_goal_other:
+          type: string
+        website:
+          type: string
+        logo_url:
+          type: string
+        expected_participant_range:
+          type: string
+        timezone:
+          type: string
+          default: UTC
+          description: IANA timezone used for the organization's adult age boundary.
+    CreateOrganizationResponse:
+      type: object
+      required: [organization, organization_trial_granted, session]
+      properties:
+        organization:
+          type: object
+          required: [id, name]
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+            workspace_id:
+              type: string
+              format: uuid
+              nullable: true
+        organization_trial_granted:
+          type: boolean
+          description: False when this adult already used their one organization trial.
+        session:
+          $ref: "#/components/schemas/Session"
+    CreateInvitationRequest:
+      type: object
+      required: [organization_id]
+      properties:
+        organization_id:
+          type: string
+          format: uuid
+        program_id:
+          type: string
+          format: uuid
+          description: Must belong to the same organization.
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [admin, manager, participant]
+          default: participant
+        expires_in_days:
+          type: integer
+          minimum: 1
+          maximum: 90
+          default: 14
+    CreatedInvitation:
+      type: object
+      required: [id, organization_id, role, expires_at, token]
+      properties:
+        id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        program_id:
+          type: string
+          format: uuid
+          nullable: true
+        email:
+          type: string
+          format: email
+          nullable: true
+        role:
+          type: string
+          enum: [admin, manager, participant]
+        expires_at:
+          type: string
+          format: date-time
+        token:
+          type: string
+          description: |
+            Raw token, returned only once at creation. Only its SHA-256 digest is
+            stored, so it cannot be retrieved again.
+    InvitationPreview:
+      type: object
+      required: [organization_id, organization_name, role, expires_at]
+      properties:
+        organization_id:
+          type: string
+          format: uuid
+        organization_name:
+          type: string
+        program_id:
+          type: string
+          format: uuid
+          nullable: true
+        program_name:
+          type: string
+          nullable: true
+        email:
+          type: string
+          format: email
+          nullable: true
+        role:
+          type: string
+          enum: [admin, manager, participant]
+        expires_at:
+          type: string
+          format: date-time
+    Taxonomy:
+      type: object
+      required: [key, name, terms]
+      properties:
+        key:
+          type: string
+          enum: [roles, experience_levels, organization_structures, organization_goals]
+        name:
+          type: string
+        terms:
+          type: array
+          items:
+            $ref: "#/components/schemas/TaxonomyTerm"
+    TaxonomyTerm:
+      type: object
+      required: [id, key, label, is_other]
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Stable across environments; safe to persist and cache.
+        key:
+          type: string
+        label:
+          type: string
+        is_other:
+          type: boolean
+          description: When true, the client must collect matching free text.
   responses:
     NotFound:
       description: Resource not found
@@ -369,19 +873,27 @@ components:
           schema:
             $ref: "#/components/schemas/ErrorEnvelope"
     Unauthenticated:
-      description: Authentication required
+      description: Missing or unverifiable Firebase ID token
       content:
         application/json:
           schema:
             $ref: "#/components/schemas/ErrorEnvelope"
     Forbidden:
-      description: Forbidden
+      description: |
+        Access denied. `error.code` is `account_suspended` for a suspended
+        account, otherwise `forbidden`.
       content:
         application/json:
           schema:
             $ref: "#/components/schemas/ErrorEnvelope"
     UnprocessableEntity:
       description: Validation failed
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+    InvalidInvitation:
+      description: Invitation is invalid, expired, or already used
       content:
         application/json:
           schema:

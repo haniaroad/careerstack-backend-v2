@@ -21,10 +21,6 @@ class Profile < ApplicationRecord
     super(options.merge(except: excluded))
   end
 
-  def date_of_birth_recorded?
-    date_of_birth.present?
-  end
-
   private
 
   def interests_within_limit
