@@ -103,4 +103,12 @@ preflight (shown as CORS / "Failed to fetch") before Rails CORS or Firebase auth
 
 6. Hard-refresh the Netlify app and retry Google / magic-link sign-in.
 
+### Expected after fix
+
+- `GET /health` → `{"status":"ok"}` (no Google 403 HTML)
+- Unauthenticated `GET /api/v1/session` → Rails **401 JSON** with `Access-Control-Allow-Origin` for Netlify (not Cloud Run 403)
+- Google / magic-link → `GET /api/v1/session` **200** → new users land on `/onboarding` (“Complete your profile”), not `/sign-in` (“Create your account”)
+
+Magic-link email delivery is configured in the Firebase Console (not Cloud Run). See the frontend README magic-link troubleshooting section.
+
 Security note: public invoker only opens the Cloud Run door. Rails still requires a valid Firebase ID token on `/api/v1/*` (except health/ready). Keep CORS limited to known frontend origins.
