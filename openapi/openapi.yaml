@@ -5,11 +5,12 @@ info:
   description: |
     Platform foundation plus identity, onboarding, and workspace contracts.
 
-    Authentication: every endpoint except `/health`, `/ready`, and `/up` requires a
-    verified Firebase ID token in `Authorization: Bearer <token>`. The first
-    verified token for an email bootstraps a CareerStack account in
-    `pending_onboarding`. Locally and in CI, `FIREBASE_AUTH_STUB=true` accepts
-    `Bearer test:<firebase_uid>:<email>` instead.
+    Authentication: every endpoint except `/health`, `/ready`, `/up`, and
+    `/api/v1/stripe/webhooks` requires a verified Firebase ID token in
+    `Authorization: Bearer <token>`. The Stripe webhook is signature-verified
+    instead. The first verified token for an email bootstraps a CareerStack
+    account in `pending_onboarding`. Locally and in CI, `FIREBASE_AUTH_STUB=true`
+    accepts `Bearer test:<firebase_uid>:<email>` instead.
 
     Privacy: full date of birth is accepted only by
     `POST /api/v1/onboarding/organization_invited`. It is never returned by any
@@ -379,6 +380,136 @@ paths:
                 $ref: "#/components/schemas/ErrorEnvelope"
         "422":
           $ref: "#/components/responses/UnprocessableEntity"
+  /api/v1/credits:
+    get:
+      operationId: getCredits
+      summary: Credit balance for the active workspace owner
+      tags: [Credits]
+      responses:
+        "200":
+          description: Remaining credits summary
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [credits]
+                properties:
+                  credits:
+                    $ref: "#/components/schemas/CreditsSummary"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+  /api/v1/credits/history:
+    get:
+      operationId: getCreditsHistory
+      summary: Append-only credit ledger history for the active workspace owner
+      tags: [Credits]
+      responses:
+        "200":
+          description: Ledger entries newest first
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [entries]
+                properties:
+                  entries:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/CreditLedgerEntry"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+  /api/v1/billing/checkout_sessions:
+    post:
+      operationId: createCheckoutSession
+      summary: Start Stripe Checkout for the personal 3@$20 pack
+      tags: [Billing]
+      responses:
+        "201":
+          description: Checkout Session created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [checkout_url, session_id]
+                properties:
+                  checkout_url:
+                    type: string
+                    format: uri
+                  session_id:
+                    type: string
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+  /api/v1/billing/purchases:
+    get:
+      operationId: listPurchases
+      summary: List personal pack purchases for the current user
+      tags: [Billing]
+      responses:
+        "200":
+          description: Purchase list
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+  /api/v1/billing/purchases/{id}:
+    get:
+      operationId: getPurchase
+      summary: Purchase detail including refund eligibility
+      tags: [Billing]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Purchase detail
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/v1/billing/refund_requests:
+    post:
+      operationId: createRefundRequest
+      summary: Submit a personal unused-credit refund request
+      tags: [Billing]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [purchase_id]
+              properties:
+                purchase_id:
+                  type: string
+                  format: uuid
+                reason:
+                  type: string
+      responses:
+        "201":
+          description: Refund request submitted
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+  /api/v1/stripe/webhooks:
+    post:
+      operationId: stripeWebhook
+      summary: Stripe webhook ingress
+      description: |
+        Public for Firebase authentication. Requires a valid Stripe-Signature
+        header. Deduplicates by event ID and grants personal pack credits on
+        `checkout.session.completed`.
+      tags: [Billing]
+      security: []
+      responses:
+        "200":
+          description: Event acknowledged
+        "400":
+          description: Invalid signature
 components:
   securitySchemes:
     bearerAuth:
@@ -597,6 +728,7 @@ components:
         - can_access_org_admin
         - age_visibility
         - program_filter
+        - credits
       properties:
         user:
           $ref: "#/components/schemas/SessionUser"
@@ -620,6 +752,52 @@ components:
           $ref: "#/components/schemas/AgeVisibility"
         program_filter:
           $ref: "#/components/schemas/ProgramFilter"
+        credits:
+          $ref: "#/components/schemas/CreditsSummary"
+          nullable: true
+    CreditsSummary:
+      type: object
+      required: [remaining, trial_remaining, purchased_remaining, owner_type]
+      properties:
+        remaining:
+          type: integer
+        trial_remaining:
+          type: integer
+        purchased_remaining:
+          type: integer
+        owner_type:
+          type: string
+          enum: [user, organization]
+    CreditLedgerEntry:
+      type: object
+      required: [id, event, reason, amount, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        event:
+          type: string
+        reason:
+          type: string
+        amount:
+          type: integer
+        related_type:
+          type: string
+          nullable: true
+        related_id:
+          type: string
+          format: uuid
+          nullable: true
+        credit_lot_id:
+          type: string
+          format: uuid
+          nullable: true
+        lot_source:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
     MinimumProfileFields:
       type: object
       description: |

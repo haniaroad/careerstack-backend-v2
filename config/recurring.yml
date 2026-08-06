@@ -17,3 +17,7 @@ production:
     class: AgeUpDetectionJob
     queue: default
     schedule: every day at 3am
+  billing_reconcile_purchases:
+    class: Billing::ReconcilePurchasesJob
+    queue: default
+    schedule: every day at 4am

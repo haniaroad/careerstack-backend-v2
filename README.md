@@ -38,12 +38,36 @@ Compose starts `api` + `postgres`. The `web` service name is reserved for the fr
 | `SENTRY_ENVIRONMENT` | Sentry environment label |
 | `FIREBASE_PROJECT_ID` | Staging Firebase project ID (required when `FIREBASE_AUTH_STUB` is false) |
 | `FIREBASE_AUTH_STUB` | Accept `Bearer test:<uid>:<email>` stub tokens instead of verifying real Firebase ID tokens |
+| `STRIPE_SECRET_KEY` | Stripe secret key (test mode locally/staging) |
+| `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret (`whsec_…`) |
+| `STRIPE_PERSONAL_PACK_PRICE_ID` | Stripe Price ID for the 3-credit / $20 personal pack |
+| `STRIPE_CHECKOUT_SUCCESS_URL` | Browser return URL after successful Checkout (include `{CHECKOUT_SESSION_ID}`) |
+| `STRIPE_CHECKOUT_CANCEL_URL` | Browser return URL when Checkout is cancelled |
 
 No credentials are committed. `.env` is gitignored; use `.env.example` placeholders only.
 
+## Stripe (personal pack)
+
+Personal credit packs use Stripe Checkout (no card fields in CareerStack). Register the webhook endpoint in the Stripe Dashboard (test mode for staging):
+
+`POST https://<api-host>/api/v1/stripe/webhooks`
+
+Events to enable: `checkout.session.completed`, `checkout.session.expired`, `checkout.session.async_payment_failed`.
+
+Local forwarding:
+
+```bash
+stripe listen --forward-to localhost:3000/api/v1/stripe/webhooks
+# set STRIPE_WEBHOOK_SECRET to the CLI-printed whsec_…
+```
+
+On successful Checkout, the API grants +3 personal credits idempotently (deduped by Stripe event ID). Cancelled or abandoned Checkout leaves the balance unchanged.
+
+`Billing::ReconcilePurchasesJob` is registered in [`config/recurring.yml`](config/recurring.yml) to flag completed purchases missing ledger lots/grants, and stale pending sessions.
+
 ## Identity API
 
-Identity, onboarding, and workspace endpoints live under `/api/v1/*`. Every path except `/health`, `/ready`, and `/up` requires `Authorization: Bearer <Firebase ID token>`; the first verified token for an email creates a CareerStack account in `pending_onboarding`. See [`openapi/openapi.yaml`](openapi/openapi.yaml) for the full contract.
+Identity, onboarding, and workspace endpoints live under `/api/v1/*`. Every path except `/health`, `/ready`, `/up`, and `/api/v1/stripe/webhooks` requires `Authorization: Bearer <Firebase ID token>`; the first verified token for an email creates a CareerStack account in `pending_onboarding`. The Stripe webhook is public for Firebase auth but still requires a valid `Stripe-Signature`. See [`openapi/openapi.yaml`](openapi/openapi.yaml) for the full contract.
 
 `FIREBASE_AUTH_STUB` defaults to on in test, and in development until `FIREBASE_PROJECT_ID` is set. It is ignored in production, where real Firebase ID tokens are always verified against Google's JWKS. With the stub enabled:
 

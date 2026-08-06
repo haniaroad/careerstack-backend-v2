@@ -32,11 +32,19 @@ class SessionSerializer
       active_workspace: WorkspaceSerializer.call(active_workspace),
       can_access_org_admin: @user.can_access_org_admin_for?(active_workspace),
       age_visibility: age_visibility_json,
-      program_filter: program_filter_json(active_workspace)
+      program_filter: program_filter_json(active_workspace),
+      credits: credits_json(active_workspace)
     }
   end
 
   private
+
+  def credits_json(workspace)
+    return nil if workspace.nil?
+
+    owner = workspace.organization_id.present? ? workspace.organization : @user
+    Credits::Balance.summary(owner: owner)
+  end
 
   def user_json
     {
