@@ -47,8 +47,20 @@ jobs:
             --region="${{ env.REGION }}" \
             --image="${{ env.IMAGE }}" \
             --port=3000 \
+            --update-env-vars="FIREBASE_PROJECT_ID=${{ vars.FIREBASE_PROJECT_ID || 'careerstack-staging' }}" \
             --quiet
 
+      # Browser SPA auth uses Firebase Bearer tokens. Cloud Run must allow unauthenticated
+      # invocation so requests reach Rails (requires org-policy exception for allUsers).
+      - name: Ensure public Cloud Run invoker
+        continue-on-error: true
+        run: |
+          gcloud run services add-iam-policy-binding "${{ env.SERVICE }}" \
+            --region="${{ env.REGION }}" \
+            --member="allUsers" \
+            --role="roles/run.invoker" \
+            --quiet \
+          || echo "WARN: could not grant allUsers run.invoker (org policy?). See infra/README.md"
       - name: Smoke check health
         env:
           DEPLOY_SA: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}

@@ -40,6 +40,67 @@ Outputs include Cloud Run URL and Artifact Registry repository used by GitHub Ac
 - No production Cloud Run / Cloud SQL / Netlify production cutover
 - No deployed Solid Queue worker service
 
-## Org policy note
+## Org policy note — public Cloud Run invoker (required for Netlify SPA)
 
-`roles/run.invoker` for `allUsers` is blocked by organization policy on `careerstack-staging`. Grant unauthenticated access only after an approved exception; until then, health smoke checks from the public internet require an authenticated invoker or a temporary policy change.
+The Netlify frontend calls Cloud Run with a **Firebase** `Authorization: Bearer` token.
+Cloud Run's IAM gate expects a **Google** identity token unless the service allows
+unauthenticated invocation. With `allUsers` blocked, browsers get **403** on OPTIONS
+preflight (shown as CORS / "Failed to fetch") before Rails CORS or Firebase auth runs.
+
+### Console checklist (operator)
+
+1. **Confirm the failure** (should be Google Frontend 403, not Rails JSON):
+   ```bash
+   curl -sS -D - -o /dev/null \
+     -X OPTIONS "https://careerstack-api-njq2cbb5vq-ul.a.run.app/api/v1/session" \
+     -H "Origin: https://careerstack-frontend-v2.netlify.app" \
+     -H "Access-Control-Request-Method: GET" \
+     -H "Access-Control-Request-Headers: authorization"
+   ```
+
+2. **Org policy exception** (Organization Policy Admin on the parent org):
+   - Open [Organization policies](https://console.cloud.google.com/iam-admin/orgpolicies) for the org that owns `careerstack-staging`.
+   - Find **Domain restricted sharing** (`constraints/iam.allowedPolicyMemberDomains`) or any policy that rejects `allUsers` on Cloud Run.
+   - Add a **project-level override** for `careerstack-staging` that allows public principals (`allUsers`) **or** exempt this project from that constraint for staging only.
+   - Save and wait a few minutes for propagation.
+
+3. **Grant public invoker** (after the exception applies):
+   ```bash
+   gcloud auth login
+   gcloud config set project careerstack-staging
+
+   gcloud run services add-iam-policy-binding careerstack-api \
+     --region=us-east5 \
+     --member=allUsers \
+     --role=roles/run.invoker
+   ```
+   Or set in `infra/envs/staging/terraform.tfvars`:
+   ```hcl
+   allow_unauthenticated_invoker = true
+   ```
+   then `cd infra/envs/staging && tofu apply`.
+
+4. **Ensure Firebase project ID is on the service** (Rails verifies real ID tokens in production):
+   ```bash
+   gcloud run services update careerstack-api \
+     --region=us-east5 \
+     --update-env-vars=FIREBASE_PROJECT_ID=careerstack-staging
+   ```
+   (Also managed by OpenTofu / staging deploy workflow going forward.)
+
+5. **Verify**
+   ```bash
+   # Public health (no auth) should be Rails JSON 200
+   curl -sS "https://careerstack-api-njq2cbb5vq-ul.a.run.app/health"
+
+   # Preflight should include ACAO for Netlify (not 403 HTML)
+   curl -sS -D - -o /dev/null \
+     -X OPTIONS "https://careerstack-api-njq2cbb5vq-ul.a.run.app/api/v1/session" \
+     -H "Origin: https://careerstack-frontend-v2.netlify.app" \
+     -H "Access-Control-Request-Method: GET" \
+     -H "Access-Control-Request-Headers: authorization"
+   ```
+
+6. Hard-refresh the Netlify app and retry Google / magic-link sign-in.
+
+Security note: public invoker only opens the Cloud Run door. Rails still requires a valid Firebase ID token on `/api/v1/*` (except health/ready). Keep CORS limited to known frontend origins.
