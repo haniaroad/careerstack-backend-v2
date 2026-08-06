@@ -216,6 +216,11 @@ resource "google_cloud_run_v2_service" "api" {
       }
 
       env {
+        name  = "FIREBASE_PROJECT_ID"
+        value = var.firebase_project_id
+      }
+
+      env {
         name  = "CORS_ORIGINS"
         value = "https://careerstack-frontend-v2.netlify.app,http://localhost:5173,http://localhost:4173"
       }
@@ -259,6 +264,15 @@ resource "google_cloud_run_v2_service" "api" {
 
   labels = local.labels
 
+  # CI (deploy-staging) owns the real image + container port after first rollout.
+  # Keep the hello/8080 defaults for bootstrap only; do not let tofu apply revert them.
+  lifecycle {
+    ignore_changes = [
+      template[0].containers[0].image,
+      template[0].containers[0].ports,
+    ]
+  }
+
   depends_on = [
     google_secret_manager_secret_version.database_url,
     google_secret_manager_secret_version.queue_database_url,
@@ -266,9 +280,22 @@ resource "google_cloud_run_v2_service" "api" {
   ]
 }
 
-# NOTE: Organization policy currently rejects member "allUsers" on Cloud Run.
-# Public invoker binding must be granted after an org-policy exception (console
-# or a follow-up change). Until then, callers need an identity with roles/run.invoker.
+# Public browser clients (Netlify) call this API with Firebase ID tokens, not
+# Google IAM identity tokens. Cloud Run must allow unauthenticated invocation so
+# requests reach Rails; Rails then enforces Firebase verification.
+#
+# Blocked by default by org policy (domain-restricted sharing). Set
+# allow_unauthenticated_invoker=true in terraform.tfvars only after the console
+# exception in infra/README.md, then re-apply.
+resource "google_cloud_run_v2_service_iam_member" "public_invoker" {
+  count = var.allow_unauthenticated_invoker ? 1 : 0
+
+  project  = var.project_id
+  location = google_cloud_run_v2_service.api.location
+  name     = google_cloud_run_v2_service.api.name
+  role     = "roles/run.invoker"
+  member   = "allUsers"
+}
 
 resource "google_iam_workload_identity_pool" "github" {
   workload_identity_pool_id = "github-actions"

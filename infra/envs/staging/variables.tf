@@ -55,3 +55,19 @@ variable "image" {
   description = "Initial Cloud Run container image (placeholder until first CI push)"
   default     = "us-docker.pkg.dev/cloudrun/container/hello"
 }
+
+variable "firebase_project_id" {
+  type        = string
+  description = "Firebase project ID used to verify ID tokens in production Cloud Run"
+  default     = "careerstack-staging"
+}
+
+variable "allow_unauthenticated_invoker" {
+  type        = bool
+  description = <<-EOT
+    When true, grants roles/run.invoker to allUsers so the Netlify SPA can call the API
+    with Firebase Bearer tokens. Requires an org-policy exception for domain-restricted
+    sharing (allUsers is blocked by default on careerstack-staging).
+  EOT
+  default     = false
+}

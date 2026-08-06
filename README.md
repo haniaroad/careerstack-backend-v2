@@ -99,4 +99,4 @@ WIF provider and deploy SA outputs come from `cd infra/envs/staging && tofu outp
 - [x] CORS allowlist includes the Netlify staging origin
 - [x] Staging deploy workflow smoke-checks `/health` via WIF identity token
 
-Note: unauthenticated staging calls receive Cloud Run **403** before Rails because public invoker is org-policy blocked. Rails **401** envelope is verified locally.
+Note: unauthenticated staging calls receive Cloud Run **403** before Rails because public invoker is org-policy blocked. Rails **401** envelope is verified locally. To unlock Netlify → API browser calls, follow the public invoker checklist in [`infra/README.md`](infra/README.md).
