@@ -264,6 +264,15 @@ resource "google_cloud_run_v2_service" "api" {
 
   labels = local.labels
 
+  # CI (deploy-staging) owns the real image + container port after first rollout.
+  # Keep the hello/8080 defaults for bootstrap only; do not let tofu apply revert them.
+  lifecycle {
+    ignore_changes = [
+      template[0].containers[0].image,
+      template[0].containers[0].ports,
+    ]
+  }
+
   depends_on = [
     google_secret_manager_secret_version.database_url,
     google_secret_manager_secret_version.queue_database_url,

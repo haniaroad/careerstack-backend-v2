@@ -34,6 +34,17 @@ Outputs include Cloud Run URL and Artifact Registry repository used by GitHub Ac
    ```
 4. **Branch protection** — enabled on `main` for both public repos (backend checks: `lint`, `security`, `test`, `docker`; frontend: `quality`).
 
+## Cloud Run image and port (CI-managed)
+
+Staging Cloud Run is bootstrapped with the public `hello` image on port `8080`. After the first GitHub Actions staging deploy, the live service uses the Artifact Registry API image on port `3000`.
+
+OpenTofu intentionally ignores subsequent drift on:
+
+- `template[0].containers[0].image`
+- `template[0].containers[0].ports`
+
+so a later `tofu apply` does not replace the CI-deployed API with `hello` / `8080`. To change image or port, use the staging deploy workflow (or `gcloud run services update`), not OpenTofu.
+
 ## What this change does not do
 
 - No `tofu apply` against `careerstack-prod`
