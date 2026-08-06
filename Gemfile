@@ -15,6 +15,9 @@ gem "sentry-rails"
 # Firebase ID token verification (RS256 via Google JWKS)
 gem "jwt"
 
+# Personal credit pack Checkout + webhooks
+gem "stripe", "~> 13.0"
+
 group :development, :test do
   gem "debug", platforms: %i[ mri windows ], require: "debug/prelude"
   gem "brakeman", require: false

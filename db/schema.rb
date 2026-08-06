@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_08_02_010000) do
+ActiveRecord::Schema[8.0].define(version: 2026_08_06_181518) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -35,9 +35,59 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_02_010000) do
     t.string "idempotency_key", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "related_type"
+    t.uuid "related_id"
+    t.uuid "credit_lot_id"
     t.index ["actor_user_id"], name: "index_credit_ledger_entries_on_actor_user_id"
     t.index ["idempotency_key"], name: "index_credit_ledger_entries_on_idempotency_key", unique: true
     t.index ["owner_type", "owner_id"], name: "index_credit_ledger_entries_on_owner_type_and_owner_id"
+    t.index ["related_type", "related_id"], name: "index_credit_ledger_entries_on_related_type_and_related_id"
+  end
+
+  create_table "credit_lots", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.string "owner_type", null: false
+    t.uuid "owner_id", null: false
+    t.string "source", null: false
+    t.integer "original_amount", null: false
+    t.integer "remaining", null: false
+    t.string "stripe_payment_ref"
+    t.datetime "granted_at", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["owner_type", "owner_id", "granted_at"], name: "index_credit_lots_on_owner_type_and_owner_id_and_granted_at"
+    t.index ["stripe_payment_ref"], name: "index_credit_lots_on_stripe_payment_ref", unique: true, where: "(stripe_payment_ref IS NOT NULL)"
+  end
+
+  create_table "credit_purchases", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "user_id", null: false
+    t.uuid "credit_lot_id"
+    t.string "stripe_checkout_session_id", null: false
+    t.string "stripe_payment_intent_id"
+    t.string "status", default: "pending", null: false
+    t.integer "credits", default: 3, null: false
+    t.integer "amount_cents", default: 2000, null: false
+    t.string "currency", default: "usd", null: false
+    t.datetime "completed_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["credit_lot_id"], name: "index_credit_purchases_on_credit_lot_id"
+    t.index ["status"], name: "index_credit_purchases_on_status"
+    t.index ["stripe_checkout_session_id"], name: "index_credit_purchases_on_stripe_checkout_session_id", unique: true
+    t.index ["user_id"], name: "index_credit_purchases_on_user_id"
+  end
+
+  create_table "credit_refund_requests", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "user_id", null: false
+    t.uuid "credit_purchase_id", null: false
+    t.string "status", default: "submitted", null: false
+    t.text "reason"
+    t.integer "unused_credits_at_request", null: false
+    t.datetime "resolved_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["credit_purchase_id"], name: "index_credit_refund_requests_on_credit_purchase_id"
+    t.index ["status"], name: "index_credit_refund_requests_on_status"
+    t.index ["user_id"], name: "index_credit_refund_requests_on_user_id"
   end
 
   create_table "invitations", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -125,6 +175,25 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_02_010000) do
     t.index ["organization_id"], name: "index_programs_on_organization_id"
   end
 
+  create_table "stripe_customers", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "user_id", null: false
+    t.string "stripe_customer_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["stripe_customer_id"], name: "index_stripe_customers_on_stripe_customer_id", unique: true
+    t.index ["user_id"], name: "index_stripe_customers_on_user_id", unique: true
+  end
+
+  create_table "stripe_webhook_events", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.string "stripe_event_id", null: false
+    t.string "event_type", null: false
+    t.string "processing_status", default: "processed", null: false
+    t.text "error_message"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["stripe_event_id"], name: "index_stripe_webhook_events_on_stripe_event_id", unique: true
+  end
+
   create_table "taxonomies", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.string "key", null: false
     t.string "name", null: false
@@ -175,7 +244,12 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_02_010000) do
   end
 
   add_foreign_key "age_visibility_preferences", "users"
+  add_foreign_key "credit_ledger_entries", "credit_lots"
   add_foreign_key "credit_ledger_entries", "users", column: "actor_user_id"
+  add_foreign_key "credit_purchases", "credit_lots"
+  add_foreign_key "credit_purchases", "users"
+  add_foreign_key "credit_refund_requests", "credit_purchases"
+  add_foreign_key "credit_refund_requests", "users"
   add_foreign_key "invitations", "organizations"
   add_foreign_key "invitations", "programs"
   add_foreign_key "invitations", "users", column: "accepted_by_user_id"
@@ -190,6 +264,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_02_010000) do
   add_foreign_key "profiles", "taxonomy_terms", column: "target_role_term_id"
   add_foreign_key "profiles", "users"
   add_foreign_key "programs", "organizations"
+  add_foreign_key "stripe_customers", "users"
   add_foreign_key "taxonomy_terms", "taxonomies"
   add_foreign_key "users", "workspaces", column: "active_workspace_id"
   add_foreign_key "users", "workspaces", column: "personal_workspace_id"

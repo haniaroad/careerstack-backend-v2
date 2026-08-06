@@ -14,6 +14,10 @@ class User < ApplicationRecord
   has_many :organization_memberships, dependent: :destroy
   has_many :organizations, through: :organization_memberships
   has_many :credit_ledger_entries, as: :owner, dependent: :restrict_with_exception
+  has_many :credit_lots, as: :owner, dependent: :restrict_with_exception
+  has_one :stripe_customer, dependent: :destroy
+  has_many :credit_purchases, dependent: :restrict_with_exception
+  has_many :credit_refund_requests, dependent: :restrict_with_exception
 
   belongs_to :personal_workspace, class_name: "Workspace", optional: true
   belongs_to :active_workspace, class_name: "Workspace", optional: true

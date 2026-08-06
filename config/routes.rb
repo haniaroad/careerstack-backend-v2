@@ -18,6 +18,13 @@ Rails.application.routes.draw do
       post "invitations/:token/accept", to: "invitations#accept"
       get "taxonomies", to: "taxonomies#index"
       patch "age_visibility", to: "age_visibilities#update"
+      get "credits", to: "credits#show"
+      get "credits/history", to: "credits#history"
+      post "billing/checkout_sessions", to: "billing/checkout_sessions#create"
+      get "billing/purchases", to: "billing/purchases#index"
+      get "billing/purchases/:id", to: "billing/purchases#show"
+      post "billing/refund_requests", to: "billing/refund_requests#create"
+      post "stripe/webhooks", to: "stripe_webhooks#create"
     end
   end
 

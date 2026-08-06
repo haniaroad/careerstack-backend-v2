@@ -6,7 +6,7 @@
 module Authenticatable
   extend ActiveSupport::Concern
 
-  PUBLIC_PATHS = %w[/health /ready /up].freeze
+  PUBLIC_PATHS = %w[/health /ready /up /api/v1/stripe/webhooks].freeze
 
   included do
     before_action :require_authentication

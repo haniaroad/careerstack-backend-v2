@@ -30,6 +30,11 @@ services:
       SENTRY_DSN: ""
       FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:-}
       FIREBASE_AUTH_STUB: ${FIREBASE_AUTH_STUB:-true}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      STRIPE_PERSONAL_PACK_PRICE_ID: ${STRIPE_PERSONAL_PACK_PRICE_ID:-}
+      STRIPE_CHECKOUT_SUCCESS_URL: ${STRIPE_CHECKOUT_SUCCESS_URL:-http://localhost:5173/billing/return?status=success&session_id={CHECKOUT_SESSION_ID}}
+      STRIPE_CHECKOUT_CANCEL_URL: ${STRIPE_CHECKOUT_CANCEL_URL:-http://localhost:5173/billing/return?status=cancelled}
     depends_on:
       postgres:
         condition: service_healthy

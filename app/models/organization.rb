@@ -9,6 +9,7 @@ class Organization < ApplicationRecord
   has_many :users, through: :organization_memberships
   has_many :invitations, dependent: :destroy
   has_many :credit_ledger_entries, as: :owner, dependent: :restrict_with_exception
+  has_many :credit_lots, as: :owner, dependent: :restrict_with_exception
 
   validates :name, :country, :state_region, :timezone, presence: true
 end
