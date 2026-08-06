@@ -5,3 +5,6 @@ github_org     = "haniaroad"
 # billing_account = "XXXXXX-XXXXXX-XXXXXX"
 budget_amount_usd = 50
 db_tier           = "db-f1-micro"
+firebase_project_id = "careerstack-staging"
+# Set true only after org-policy exception for allUsers on Cloud Run (see infra/README.md).
+allow_unauthenticated_invoker = false

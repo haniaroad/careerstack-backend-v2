@@ -42,12 +42,15 @@ jobs:
           echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
 
       - name: Deploy Cloud Run
+        env:
+          FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
         run: |
+          FIREBASE_PROJECT_ID="${FIREBASE_PROJECT_ID:-careerstack-staging}"
           gcloud run services update "${{ env.SERVICE }}" \
             --region="${{ env.REGION }}" \
             --image="${{ env.IMAGE }}" \
             --port=3000 \
-            --update-env-vars="FIREBASE_PROJECT_ID=${{ vars.FIREBASE_PROJECT_ID || 'careerstack-staging' }}" \
+            --update-env-vars="FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID}" \
             --quiet
 
       # Browser SPA auth uses Firebase Bearer tokens. Cloud Run must allow unauthenticated
