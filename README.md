@@ -43,6 +43,10 @@ Compose starts `api` + `postgres`. The `web` service name is reserved for the fr
 | `STRIPE_PERSONAL_PACK_PRICE_ID` | Stripe Price ID for the 3-credit / $20 personal pack |
 | `STRIPE_CHECKOUT_SUCCESS_URL` | Browser return URL after successful Checkout (include `{CHECKOUT_SESSION_ID}`) |
 | `STRIPE_CHECKOUT_CANCEL_URL` | Browser return URL when Checkout is cancelled |
+| `OPENROUTER_API_KEY` | OpenRouter API key for AI draft generation |
+| `OPENROUTER_BASE_URL` | OpenRouter API base (default `https://openrouter.ai/api/v1`) |
+| `AI_KILL_SWITCH` | When `true`, reject new nonessential AI work without calling the provider |
+| `AI_BUDGET_STOP` | When `true`, same stop behavior for budget exhaustion |
 
 No credentials are committed. `.env` is gitignored; use `.env.example` placeholders only.
 
@@ -64,6 +68,18 @@ stripe listen --forward-to localhost:3000/api/v1/stripe/webhooks
 On successful Checkout, the API grants +3 personal credits idempotently (deduped by Stripe event ID). Cancelled or abandoned Checkout leaves the balance unchanged.
 
 `Billing::ReconcilePurchasesJob` is registered in [`config/recurring.yml`](config/recurring.yml) to flag completed purchases missing ledger lots/grants, and stale pending sessions.
+
+## OpenRouter (AI project generation)
+
+Project draft generation uses OpenRouter behind a provider-neutral adapter.
+
+1. Create an OpenRouter API key and set `OPENROUTER_API_KEY` in `.env` (and Compose / Secret Manager for staging).
+2. Optional: `OPENROUTER_BASE_URL` (defaults to `https://openrouter.ai/api/v1`).
+3. Runtime stops (no provider calls): `AI_KILL_SWITCH=true` or `AI_BUDGET_STOP=true`.
+4. Local Compose defaults `AI_INLINE_JOBS=true` so generation runs in-process without a separate Solid Queue worker. Staging/production should run jobs via Solid Queue and leave `AI_INLINE_JOBS` unset/false.
+5. Model + prompt versions live in `config/ai/registry.yml`.
+
+Generate does **not** consume project credits; confirm still does.
 
 ## Identity API
 
