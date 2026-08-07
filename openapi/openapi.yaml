@@ -708,6 +708,128 @@ paths:
           $ref: "#/components/responses/Unauthenticated"
         "422":
           $ref: "#/components/responses/UnprocessableEntity"
+  /api/v1/ai/project_generations:
+    post:
+      operationId: createProjectGeneration
+      summary: Start AI project draft generation via OpenRouter
+      description: |
+        Enqueues structured draft generation. Does not consume project credits.
+        Returns 503 when the kill switch / budget stop is on or the provider is
+        unconfigured. At most one successful generation per net-new draft.
+      tags: [AI]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [prompt]
+              properties:
+                prompt:
+                  type: string
+                  maxLength: 4000
+                constraints:
+                  type: object
+                  properties:
+                    skill_level:
+                      type: string
+                    time_available:
+                      type: string
+                client_draft_key:
+                  type: string
+                  description: Client-stable key for pre-draft allowance binding
+                project_id:
+                  type: string
+                  format: uuid
+                  description: Optional existing draft to bind generation to
+      responses:
+        "202":
+          description: Generation accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [generation]
+                properties:
+                  generation:
+                    $ref: "#/components/schemas/AiGeneration"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+        "429":
+          description: Abuse rate limit
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "503":
+          description: AI unavailable or not configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /api/v1/ai/project_generations/{id}:
+    get:
+      operationId: getProjectGeneration
+      summary: Poll AI project generation status (owner only)
+      tags: [AI]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Generation status
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [generation]
+                properties:
+                  generation:
+                    $ref: "#/components/schemas/AiGeneration"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/v1/ai/project_generations/{id}/accept:
+    post:
+      operationId: acceptProjectGeneration
+      summary: Accept a succeeded generation into a solo project draft
+      description: Creates or updates a draft project. Does not consume credits.
+      tags: [AI]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Draft project updated from generation
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [project, generation]
+                properties:
+                  project:
+                    $ref: "#/components/schemas/Project"
+                  generation:
+                    $ref: "#/components/schemas/AiGeneration"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
 components:
   securitySchemes:
     bearerAuth:
@@ -968,7 +1090,7 @@ components:
           enum: [user, organization]
     Project:
       type: object
-      required: [id, title, mode, status, workspace_id, creator_id, skills]
+      required: [id, title, mode, status, source, workspace_id, creator_id, skills]
       properties:
         id:
           type: string
@@ -988,6 +1110,40 @@ components:
         status:
           type: string
           enum: [draft, active, cancelled]
+        source:
+          type: string
+          enum: [manual, ai]
+        objective:
+          type: string
+          nullable: true
+        project_type:
+          type: string
+          nullable: true
+        expected_duration:
+          type: string
+          nullable: true
+        ends_on:
+          type: string
+          format: date
+          nullable: true
+        definition_of_done:
+          type: string
+          nullable: true
+        roles_needed:
+          type: array
+          items:
+            type: string
+        proposed_tasks:
+          type: array
+          items:
+            type: object
+        submission_expectations:
+          type: string
+          nullable: true
+        ai_generation_succeeded_at:
+          type: string
+          format: date-time
+          nullable: true
         workspace_id:
           type: string
           format: uuid
@@ -999,6 +1155,71 @@ components:
           format: date-time
           nullable: true
         cancelled_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    AiGeneration:
+      type: object
+      required: [id, use_case, status, retryable]
+      properties:
+        id:
+          type: string
+          format: uuid
+        use_case:
+          type: string
+          enum: [project_draft_generation]
+        status:
+          type: string
+          enum: [pending, running, succeeded, failed]
+        client_draft_key:
+          type: string
+          nullable: true
+        constraints:
+          type: object
+        result:
+          type: object
+        project_id:
+          type: string
+          format: uuid
+          nullable: true
+        model:
+          type: string
+          nullable: true
+        prompt_version:
+          type: string
+          nullable: true
+        prompt_tokens:
+          type: integer
+          nullable: true
+        completion_tokens:
+          type: integer
+          nullable: true
+        total_tokens:
+          type: integer
+          nullable: true
+        error_code:
+          type: string
+          nullable: true
+        error_message:
+          type: string
+          nullable: true
+        retryable:
+          type: boolean
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        succeeded_at:
+          type: string
+          format: date-time
+          nullable: true
+        failed_at:
           type: string
           format: date-time
           nullable: true

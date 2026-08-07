@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_08_07_013000) do
+ActiveRecord::Schema[8.0].define(version: 2026_08_07_120100) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -23,6 +23,38 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_07_013000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["user_id"], name: "index_age_visibility_preferences_on_user_id", unique: true
+  end
+
+  create_table "ai_generations", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "user_id", null: false
+    t.uuid "workspace_id", null: false
+    t.uuid "project_id"
+    t.string "use_case", null: false
+    t.string "status", default: "pending", null: false
+    t.string "client_draft_key"
+    t.text "prompt", null: false
+    t.string "prompt_digest", null: false
+    t.jsonb "constraints", default: {}, null: false
+    t.jsonb "result", default: {}, null: false
+    t.string "model"
+    t.string "prompt_version"
+    t.integer "prompt_tokens"
+    t.integer "completion_tokens"
+    t.integer "total_tokens"
+    t.string "error_code"
+    t.string "error_message"
+    t.boolean "retryable", default: false, null: false
+    t.datetime "started_at"
+    t.datetime "succeeded_at"
+    t.datetime "failed_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["client_draft_key"], name: "index_ai_generations_on_client_draft_key"
+    t.index ["project_id"], name: "index_ai_generations_on_project_id"
+    t.index ["user_id", "status"], name: "index_ai_generations_on_user_id_and_status"
+    t.index ["user_id", "succeeded_at"], name: "index_ai_generations_on_user_id_and_succeeded_at"
+    t.index ["user_id"], name: "index_ai_generations_on_user_id"
+    t.index ["workspace_id"], name: "index_ai_generations_on_workspace_id"
   end
 
   create_table "credit_ledger_entries", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -200,6 +232,16 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_07_013000) do
     t.datetime "cancelled_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.text "objective"
+    t.string "project_type"
+    t.string "expected_duration"
+    t.date "ends_on"
+    t.text "definition_of_done"
+    t.jsonb "roles_needed", default: [], null: false
+    t.jsonb "proposed_tasks", default: [], null: false
+    t.text "submission_expectations"
+    t.string "source", default: "manual", null: false
+    t.datetime "ai_generation_succeeded_at"
     t.index ["creator_id", "status"], name: "index_projects_on_creator_id_and_status"
     t.index ["creator_id"], name: "index_projects_on_creator_id"
     t.index ["workspace_id", "status"], name: "index_projects_on_workspace_id_and_status"
@@ -275,6 +317,9 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_07_013000) do
   end
 
   add_foreign_key "age_visibility_preferences", "users"
+  add_foreign_key "ai_generations", "projects"
+  add_foreign_key "ai_generations", "users"
+  add_foreign_key "ai_generations", "workspaces"
   add_foreign_key "credit_ledger_entries", "credit_lots"
   add_foreign_key "credit_ledger_entries", "users", column: "actor_user_id"
   add_foreign_key "credit_purchases", "credit_lots"
