@@ -510,6 +510,204 @@ paths:
           description: Event acknowledged
         "400":
           description: Invalid signature
+  /api/v1/projects:
+    get:
+      operationId: listProjects
+      summary: List projects visible in the active workspace
+      tags: [Projects]
+      responses:
+        "200":
+          description: Projects for the active workspace
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [projects]
+                properties:
+                  projects:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Project"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+    post:
+      operationId: createProjectDraft
+      summary: Create a manual solo project draft (no credit consume)
+      tags: [Projects]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title]
+              properties:
+                title:
+                  type: string
+                summary:
+                  type: string
+                  nullable: true
+                skills:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        "201":
+          description: Draft created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [project]
+                properties:
+                  project:
+                    $ref: "#/components/schemas/Project"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+  /api/v1/projects/{id}:
+    get:
+      operationId: getProject
+      summary: Show a project in the active workspace
+      tags: [Projects]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Project detail
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [project]
+                properties:
+                  project:
+                    $ref: "#/components/schemas/Project"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      operationId: updateProjectDraft
+      summary: Update a draft project
+      tags: [Projects]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                summary:
+                  type: string
+                  nullable: true
+                skills:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        "200":
+          description: Draft updated
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [project]
+                properties:
+                  project:
+                    $ref: "#/components/schemas/Project"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+    delete:
+      operationId: discardProjectDraft
+      summary: Discard a draft project
+      tags: [Projects]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Draft discarded
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+  /api/v1/projects/{id}/confirm:
+    post:
+      operationId: confirmProject
+      summary: Confirm draft to active and consume one workspace credit
+      tags: [Projects]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Project activated
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [project, session]
+                properties:
+                  project:
+                    $ref: "#/components/schemas/Project"
+                  session:
+                    $ref: "#/components/schemas/Session"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+  /api/v1/projects/{id}/cancel:
+    post:
+      operationId: cancelProject
+      summary: Cancel an active solo project and restore the create credit
+      tags: [Projects]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Project cancelled
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [project, session]
+                properties:
+                  project:
+                    $ref: "#/components/schemas/Project"
+                  session:
+                    $ref: "#/components/schemas/Session"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
 components:
   securitySchemes:
     bearerAuth:
@@ -768,6 +966,48 @@ components:
         owner_type:
           type: string
           enum: [user, organization]
+    Project:
+      type: object
+      required: [id, title, mode, status, workspace_id, creator_id, skills]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        summary:
+          type: string
+          nullable: true
+        skills:
+          type: array
+          items:
+            type: string
+        mode:
+          type: string
+          enum: [solo]
+        status:
+          type: string
+          enum: [draft, active, cancelled]
+        workspace_id:
+          type: string
+          format: uuid
+        creator_id:
+          type: string
+          format: uuid
+        confirmed_at:
+          type: string
+          format: date-time
+          nullable: true
+        cancelled_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
     CreditLedgerEntry:
       type: object
       required: [id, event, reason, amount, created_at]

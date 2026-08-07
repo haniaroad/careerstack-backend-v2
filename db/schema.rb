@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_08_06_181518) do
+ActiveRecord::Schema[8.0].define(version: 2026_08_07_013000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -175,6 +175,37 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_06_181518) do
     t.index ["organization_id"], name: "index_programs_on_organization_id"
   end
 
+  create_table "project_memberships", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "project_id", null: false
+    t.uuid "user_id", null: false
+    t.string "role", default: "creator", null: false
+    t.string "status", default: "active", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["project_id", "user_id"], name: "index_project_memberships_on_project_id_and_user_id", unique: true
+    t.index ["project_id"], name: "index_project_memberships_on_project_id"
+    t.index ["user_id", "status"], name: "index_project_memberships_on_user_id_and_status"
+    t.index ["user_id"], name: "index_project_memberships_on_user_id"
+  end
+
+  create_table "projects", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "workspace_id", null: false
+    t.uuid "creator_id", null: false
+    t.string "title", null: false
+    t.text "summary"
+    t.jsonb "skills", default: [], null: false
+    t.string "mode", default: "solo", null: false
+    t.string "status", default: "draft", null: false
+    t.datetime "confirmed_at"
+    t.datetime "cancelled_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["creator_id", "status"], name: "index_projects_on_creator_id_and_status"
+    t.index ["creator_id"], name: "index_projects_on_creator_id"
+    t.index ["workspace_id", "status"], name: "index_projects_on_workspace_id_and_status"
+    t.index ["workspace_id"], name: "index_projects_on_workspace_id"
+  end
+
   create_table "stripe_customers", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.uuid "user_id", null: false
     t.string "stripe_customer_id", null: false
@@ -264,6 +295,10 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_06_181518) do
   add_foreign_key "profiles", "taxonomy_terms", column: "target_role_term_id"
   add_foreign_key "profiles", "users"
   add_foreign_key "programs", "organizations"
+  add_foreign_key "project_memberships", "projects"
+  add_foreign_key "project_memberships", "users"
+  add_foreign_key "projects", "users", column: "creator_id"
+  add_foreign_key "projects", "workspaces"
   add_foreign_key "stripe_customers", "users"
   add_foreign_key "taxonomy_terms", "taxonomies"
   add_foreign_key "users", "workspaces", column: "active_workspace_id"
