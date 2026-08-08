@@ -1,16 +1,17 @@
 # frozen_string_literal: true
 
 class ProjectSerializer
-  def self.call(project)
-    new(project).as_json
+  def self.call(project, include_tasks: true)
+    new(project, include_tasks: include_tasks).as_json
   end
 
-  def initialize(project)
+  def initialize(project, include_tasks: true)
     @project = project
+    @include_tasks = include_tasks
   end
 
   def as_json
-    {
+    payload = {
       id: @project.id,
       title: @project.title,
       summary: @project.summary,
@@ -34,5 +35,7 @@ class ProjectSerializer
       created_at: @project.created_at,
       updated_at: @project.updated_at
     }
+    payload[:tasks] = @project.tasks.order(:position).map { |t| TaskSerializer.call(t) } if @include_tasks
+    payload
   end
 end

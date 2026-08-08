@@ -29,3 +29,8 @@ end
 group :test do
   gem "rack-test"
 end
+
+# File evidence uploads + AI review extractors
+gem "image_processing", "~> 1.2"
+gem "pdf-reader", "~> 2.12"
+gem "rubyzip", "~> 2.3"

@@ -6,7 +6,7 @@ module Api
       def index
         workspace = require_workspace!
         projects = visible_projects(workspace).order(updated_at: :desc)
-        render json: { projects: projects.map { |p| ProjectSerializer.call(p) } }
+        render json: { projects: projects.map { |p| ProjectSerializer.call(p, include_tasks: false) } }
       end
 
       def show

@@ -6,3 +6,10 @@ use_cases:
     prompt_version: "v1"
     prompt_path: config/ai/prompts/project_draft_generation/v1.md
     schema_path: config/ai/schemas/project_draft_generation/v1.json
+  task_review:
+    model: openai/gpt-4o-mini
+    temperature: 0.2
+    max_tokens: 2048
+    prompt_version: "v2"
+    prompt_path: config/ai/prompts/task_review/v2.md
+    schema_path: config/ai/schemas/task_review/v2.json

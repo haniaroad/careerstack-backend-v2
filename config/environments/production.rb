@@ -20,6 +20,8 @@ Rails.application.configure do
 
   config.require_master_key = false
 
+  config.active_storage.service = :google
+
   missing = %w[SECRET_KEY_BASE DATABASE_URL].reject { |key| ENV[key].present? }
   if missing.any?
     raise "Missing required configuration: #{missing.join(', ')}"
