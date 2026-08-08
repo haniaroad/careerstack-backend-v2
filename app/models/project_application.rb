@@ -23,6 +23,10 @@ class ProjectApplication < ApplicationRecord
     status == STATUS_PENDING
   end
 
+  def overdue?
+    overdue_at.present?
+  end
+
   private
 
   def optional_urls_are_https

@@ -102,6 +102,8 @@ Solid Queue is installed with a separate queue database connection and schema. *
 
 `AgeUpDetectionJob` is registered in [`config/recurring.yml`](config/recurring.yml) to run daily in production. It promotes organization-invited minors who have reached 18 in their organization's timezone, grants the Personal workspace and personal trial credit that were withheld, and flags them for visibility review so their profile stays private until they explicitly confirm. Run it on demand with `bin/rails runner AgeUpDetectionJob.perform_now`.
 
+`InboxOverdueEscalationJob` is registered hourly in production. It marks overdue applications and team task reviews (>72h), creates creator reminder alerts, and opens durable escalations (Personal → staff target; Organization → org managers/admins with Inbox alerts). Email delivery remains deferred to the notifications change. Run on demand with `bin/rails runner InboxOverdueEscalationJob.perform_now`.
+
 ## AI (OpenRouter)
 
 Set `OPENROUTER_API_KEY` for project draft generation and solo task review. Runtime controls:
