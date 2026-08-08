@@ -6,12 +6,12 @@ module Api
       def index
         workspace = require_workspace!
         projects = visible_projects(workspace).order(updated_at: :desc)
-        render json: { projects: projects.map { |p| ProjectSerializer.call(p, include_tasks: false) } }
+        render json: { projects: projects.map { |p| ProjectSerializer.call(p, include_tasks: false, viewer: current_user) } }
       end
 
       def show
-        project = find_visible_project!
-        render json: { project: ProjectSerializer.call(project) }
+        project = find_visible_or_joinable_project!
+        render json: { project: ProjectSerializer.call(project, viewer: current_user) }
       end
 
       def create
@@ -21,9 +21,13 @@ module Api
           workspace: workspace,
           title: params.require(:title),
           summary: params[:summary],
-          skills: params[:skills]
+          skills: params[:skills],
+          mode: params[:mode] || Project::MODE_SOLO,
+          joining_mode: params[:joining_mode],
+          capacity: params[:capacity],
+          roles_needed: params[:roles_needed]
         )
-        render json: { project: ProjectSerializer.call(project) }, status: :created
+        render json: { project: ProjectSerializer.call(project, viewer: current_user) }, status: :created
       end
 
       def update
@@ -41,9 +45,12 @@ module Api
           definition_of_done: params.key?(:definition_of_done) ? params[:definition_of_done] : :unchanged,
           roles_needed: params.key?(:roles_needed) ? params[:roles_needed] : :unchanged,
           proposed_tasks: params.key?(:proposed_tasks) ? params[:proposed_tasks] : :unchanged,
-          submission_expectations: params.key?(:submission_expectations) ? params[:submission_expectations] : :unchanged
+          submission_expectations: params.key?(:submission_expectations) ? params[:submission_expectations] : :unchanged,
+          mode: params.key?(:mode) ? params[:mode] : :unchanged,
+          joining_mode: params.key?(:joining_mode) ? params[:joining_mode] : :unchanged,
+          capacity: params.key?(:capacity) ? params[:capacity] : :unchanged
         )
-        render json: { project: ProjectSerializer.call(updated) }
+        render json: { project: ProjectSerializer.call(updated, viewer: current_user) }
       end
 
       def destroy
@@ -56,7 +63,7 @@ module Api
         project = find_creator_project!
         confirmed = Projects::Confirm.call(project: project, user: current_user)
         render json: {
-          project: ProjectSerializer.call(confirmed),
+          project: ProjectSerializer.call(confirmed, viewer: current_user),
           session: SessionSerializer.new(current_user.reload).as_json
         }
       end
@@ -65,8 +72,69 @@ module Api
         project = find_creator_project!
         cancelled = Projects::Cancel.call(project: project, user: current_user)
         render json: {
-          project: ProjectSerializer.call(cancelled),
+          project: ProjectSerializer.call(cancelled, viewer: current_user),
           session: SessionSerializer.new(current_user.reload).as_json
+        }
+      end
+
+      def convert_to_team
+        project = find_creator_project!
+        converted = Projects::ConvertToTeam.call(
+          project: project,
+          user: current_user,
+          joining_mode: params.require(:joining_mode),
+          capacity: params.require(:capacity),
+          roles_needed: params.require(:roles_needed)
+        )
+        render json: { project: ProjectSerializer.call(converted, viewer: current_user) }
+      end
+
+      def convert_to_solo
+        project = find_creator_project!
+        converted = Projects::ConvertToSolo.call(project: project, user: current_user)
+        render json: { project: ProjectSerializer.call(converted, viewer: current_user) }
+      end
+
+      def join
+        project = find_joinable_project!
+        membership = Projects::InstantJoin.call(
+          project: project,
+          user: current_user,
+          participant_role: params.require(:participant_role)
+        )
+        render json: {
+          membership: membership_payload(membership),
+          project: ProjectSerializer.call(project.reload, viewer: current_user),
+          session: SessionSerializer.new(current_user.reload).as_json
+        }, status: :created
+      end
+
+      def leave
+        project = find_workspace_project!
+        membership = Projects::Leave.call(
+          project: project,
+          user: current_user,
+          reason_category: params.require(:reason_category),
+          reason_detail: params[:reason_detail]
+        )
+        render json: {
+          membership: membership_payload(membership),
+          project: ProjectSerializer.call(project.reload, viewer: current_user)
+        }
+      end
+
+      def remove_member
+        project = find_workspace_project!
+        membership = Projects::RemoveMember.call(
+          project: project,
+          actor: current_user,
+          member_user: User.find(params.require(:user_id)),
+          reason_category: params.require(:reason_category),
+          reason_detail: params[:reason_detail]
+        )
+        render json: {
+          membership: membership_payload(membership),
+          project: ProjectSerializer.call(project.reload, viewer: current_user)
         }
       end
 
@@ -86,9 +154,45 @@ module Api
         )
       end
 
-      def find_visible_project!
+      def find_visible_or_joinable_project!
         workspace = require_workspace!
         project = visible_projects(workspace).find_by(id: params[:id])
+        return project if project
+
+        project = Project.find_by(id: params[:id])
+        raise ActiveRecord::RecordNotFound if project.nil?
+
+        if project.workspace.organization_id.present?
+          raise ActiveRecord::RecordNotFound unless current_user.member_of_workspace?(project.workspace)
+          return project
+        end
+
+        # Personal team projects: eligible adults may open joinable projects by direct link.
+        if project.team? && project.active? && current_user.adult? && !current_user.pending_onboarding?
+          return project
+        end
+
+        raise ActiveRecord::RecordNotFound
+      end
+
+      def find_joinable_project!
+        project = Project.find_by(id: params[:id] || params[:project_id])
+        raise ActiveRecord::RecordNotFound if project.nil?
+
+        Projects::JoinEligibility.assert_can_join!(project: project, user: current_user)
+        project
+      end
+
+      def find_workspace_project!
+        workspace = require_workspace!
+        project = Project.in_workspace(workspace).find_by(id: params[:id])
+        if project.nil?
+          # Allow leave/remove/manage on projects the user joined even if active workspace differs.
+          project = Project.joins(:memberships).find_by(
+            id: params[:id],
+            project_memberships: { user_id: current_user.id }
+          )
+        end
         raise ActiveRecord::RecordNotFound if project.nil?
 
         project
@@ -107,6 +211,18 @@ module Api
         raise DomainError.new("Only draft projects can be modified this way", code: "validation_error") unless project.draft?
 
         project
+      end
+
+      def membership_payload(membership)
+        {
+          id: membership.id,
+          project_id: membership.project_id,
+          user_id: membership.user_id,
+          role: membership.role,
+          participant_role: membership.participant_role,
+          status: membership.status,
+          join_source: membership.join_source
+        }
       end
     end
   end

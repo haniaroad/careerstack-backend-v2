@@ -2,11 +2,6 @@
 
 module Projects
   class UpdateDraft
-    EDITABLE = %i[
-      title summary skills objective project_type expected_duration ends_on
-      definition_of_done roles_needed proposed_tasks submission_expectations
-    ].freeze
-
     def self.call(project:, user:, **attrs)
       new(project: project, user: user, attrs: attrs).call
     end
@@ -41,6 +36,22 @@ module Projects
       end
       if @attrs.key?(:proposed_tasks) && @attrs[:proposed_tasks] != :unchanged
         updates[:proposed_tasks] = Array(@attrs[:proposed_tasks])
+      end
+      if @attrs.key?(:mode) && @attrs[:mode] != :unchanged
+        updates[:mode] = @attrs[:mode].to_s
+      end
+      if @attrs.key?(:joining_mode) && @attrs[:joining_mode] != :unchanged
+        updates[:joining_mode] = @attrs[:joining_mode].presence
+      end
+      if @attrs.key?(:capacity) && @attrs[:capacity] != :unchanged
+        updates[:capacity] = @attrs[:capacity].present? ? @attrs[:capacity].to_i : nil
+      end
+
+      mode = updates.fetch(:mode, @project.mode)
+      if mode == Project::MODE_SOLO
+        updates[:joining_mode] = nil if updates.key?(:joining_mode) || updates.key?(:mode)
+        updates[:capacity] = nil if updates.key?(:capacity) || updates.key?(:mode)
+        updates[:roles_needed] = [] if updates.key?(:mode)
       end
 
       @project.update!(updates) if updates.any?

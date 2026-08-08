@@ -111,6 +111,17 @@ Set `OPENROUTER_API_KEY` for project draft generation and solo task review. Runt
 
 Evidence files use Active Storage (Disk locally under `storage/`; configure private GCS for staging/production in `config/storage.yml`).
 
+## Team joining
+
+Team projects support `application`, `instant`, and `invite_only` joining modes (capacity 1–5; creator excluded). Membership join paths consume one workspace credit via the ledger. Key routes:
+
+- `POST /api/v1/projects/:id/convert_to_team`, `POST .../join`, `POST .../leave`, `POST .../remove_member`
+- `POST /api/v1/projects/:project_id/applications` (+ approve/reject)
+- `POST /api/v1/projects/:project_id/invitations` and `POST /api/v1/project_invitations/:id/accept|decline`
+- `PATCH /api/v1/tasks/:task_id/assignment`
+
+Creator task review / Inbox remains a later change; team submissions may stay `submitted` until then.
+
 ## Tests and quality
 
 ```bash
