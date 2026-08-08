@@ -45,6 +45,8 @@ module Projects
           role: ProjectMembership::ROLE_CREATOR,
           status: ProjectMembership::STATUS_ACTIVE
         )
+
+        Tasks::MaterializeFromProposed.call(project: @project, assignee: @user)
       end
 
       @project.reload

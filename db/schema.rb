@@ -10,10 +10,38 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_08_07_120100) do
+ActiveRecord::Schema[8.0].define(version: 2026_08_07_200200) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
+
+  create_table "active_storage_attachments", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.string "name", null: false
+    t.string "record_type", null: false
+    t.uuid "record_id", null: false
+    t.uuid "blob_id", null: false
+    t.datetime "created_at", null: false
+    t.index ["blob_id"], name: "index_active_storage_attachments_on_blob_id"
+    t.index ["record_type", "record_id", "name", "blob_id"], name: "index_active_storage_attachments_uniqueness", unique: true
+  end
+
+  create_table "active_storage_blobs", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.string "key", null: false
+    t.string "filename", null: false
+    t.string "content_type"
+    t.text "metadata"
+    t.string "service_name", null: false
+    t.bigint "byte_size", null: false
+    t.string "checksum"
+    t.datetime "created_at", null: false
+    t.index ["key"], name: "index_active_storage_blobs_on_key", unique: true
+  end
+
+  create_table "active_storage_variant_records", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "blob_id", null: false
+    t.string "variation_digest", null: false
+    t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
+  end
 
   create_table "age_visibility_preferences", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.uuid "user_id", null: false
@@ -23,6 +51,17 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_07_120100) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["user_id"], name: "index_age_visibility_preferences_on_user_id", unique: true
+  end
+
+  create_table "ai_extraction_caches", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.string "blob_digest", null: false
+    t.string "content_type"
+    t.text "extracted_text"
+    t.string "status", default: "succeeded", null: false
+    t.string "error_code"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["blob_digest"], name: "index_ai_extraction_caches_on_blob_digest", unique: true
   end
 
   create_table "ai_generations", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -55,6 +94,52 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_07_120100) do
     t.index ["user_id", "succeeded_at"], name: "index_ai_generations_on_user_id_and_succeeded_at"
     t.index ["user_id"], name: "index_ai_generations_on_user_id"
     t.index ["workspace_id"], name: "index_ai_generations_on_workspace_id"
+  end
+
+  create_table "ai_review_reports", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "ai_review_id", null: false
+    t.uuid "reporter_id", null: false
+    t.string "report_type", null: false
+    t.string "reason_category", null: false
+    t.text "details"
+    t.string "status", default: "open", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["ai_review_id"], name: "index_ai_review_reports_on_ai_review_id"
+    t.index ["reporter_id"], name: "index_ai_review_reports_on_reporter_id"
+  end
+
+  create_table "ai_reviews", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "task_id", null: false
+    t.uuid "task_submission_id", null: false
+    t.uuid "user_id", null: false
+    t.string "status", default: "pending", null: false
+    t.string "decision"
+    t.jsonb "feedback", default: {}, null: false
+    t.boolean "analysis_incomplete", default: false, null: false
+    t.jsonb "unsupported_items", default: [], null: false
+    t.string "model"
+    t.string "prompt_version"
+    t.integer "prompt_tokens"
+    t.integer "completion_tokens"
+    t.integer "total_tokens"
+    t.string "error_code"
+    t.text "error_message"
+    t.integer "technical_retry_count", default: 0, null: false
+    t.boolean "counts_as_attempt", default: false, null: false
+    t.string "content_fingerprint", null: false
+    t.datetime "started_at"
+    t.datetime "completed_at"
+    t.integer "processing_ms"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["status"], name: "index_ai_reviews_on_status"
+    t.index ["task_id", "status"], name: "index_ai_reviews_on_task_id_and_status"
+    t.index ["task_id"], name: "index_ai_reviews_on_task_id"
+    t.index ["task_id"], name: "index_ai_reviews_one_active_per_task", unique: true, where: "((status)::text = ANY ((ARRAY['pending'::character varying, 'running'::character varying])::text[]))"
+    t.index ["task_submission_id"], name: "index_ai_reviews_on_task_submission_id"
+    t.index ["user_id", "created_at"], name: "index_ai_reviews_on_user_id_and_created_at"
+    t.index ["user_id"], name: "index_ai_reviews_on_user_id"
   end
 
   create_table "credit_ledger_entries", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -267,6 +352,47 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_07_120100) do
     t.index ["stripe_event_id"], name: "index_stripe_webhook_events_on_stripe_event_id", unique: true
   end
 
+  create_table "task_submission_links", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "task_submission_id", null: false
+    t.string "url", limit: 2048, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["task_submission_id"], name: "index_task_submission_links_on_task_submission_id"
+  end
+
+  create_table "task_submissions", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "task_id", null: false
+    t.uuid "submitted_by_id", null: false
+    t.integer "attempt_number", null: false
+    t.text "body"
+    t.string "content_fingerprint", null: false
+    t.datetime "submitted_at", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["submitted_by_id"], name: "index_task_submissions_on_submitted_by_id"
+    t.index ["task_id", "attempt_number"], name: "index_task_submissions_on_task_id_and_attempt_number", unique: true
+    t.index ["task_id"], name: "index_task_submissions_on_task_id"
+  end
+
+  create_table "tasks", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "project_id", null: false
+    t.uuid "assignee_id", null: false
+    t.string "title", limit: 200, null: false
+    t.text "acceptance_criteria"
+    t.text "submission_expectations"
+    t.date "due_on"
+    t.string "status", default: "pending", null: false
+    t.integer "position", default: 0, null: false
+    t.datetime "first_submitted_at"
+    t.boolean "on_time"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["assignee_id", "status"], name: "index_tasks_on_assignee_id_and_status"
+    t.index ["assignee_id"], name: "index_tasks_on_assignee_id"
+    t.index ["project_id", "status"], name: "index_tasks_on_project_id_and_status"
+    t.index ["project_id"], name: "index_tasks_on_project_id"
+  end
+
   create_table "taxonomies", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.string "key", null: false
     t.string "name", null: false
@@ -316,10 +442,17 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_07_120100) do
     t.index ["owner_user_id"], name: "index_workspaces_personal_owner", unique: true, where: "((kind)::text = 'personal'::text)"
   end
 
+  add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "age_visibility_preferences", "users"
   add_foreign_key "ai_generations", "projects"
   add_foreign_key "ai_generations", "users"
   add_foreign_key "ai_generations", "workspaces"
+  add_foreign_key "ai_review_reports", "ai_reviews"
+  add_foreign_key "ai_review_reports", "users", column: "reporter_id"
+  add_foreign_key "ai_reviews", "task_submissions"
+  add_foreign_key "ai_reviews", "tasks"
+  add_foreign_key "ai_reviews", "users"
   add_foreign_key "credit_ledger_entries", "credit_lots"
   add_foreign_key "credit_ledger_entries", "users", column: "actor_user_id"
   add_foreign_key "credit_purchases", "credit_lots"
@@ -345,6 +478,11 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_07_120100) do
   add_foreign_key "projects", "users", column: "creator_id"
   add_foreign_key "projects", "workspaces"
   add_foreign_key "stripe_customers", "users"
+  add_foreign_key "task_submission_links", "task_submissions"
+  add_foreign_key "task_submissions", "tasks"
+  add_foreign_key "task_submissions", "users", column: "submitted_by_id"
+  add_foreign_key "tasks", "projects"
+  add_foreign_key "tasks", "users", column: "assignee_id"
   add_foreign_key "taxonomy_terms", "taxonomies"
   add_foreign_key "users", "workspaces", column: "active_workspace_id"
   add_foreign_key "users", "workspaces", column: "personal_workspace_id"

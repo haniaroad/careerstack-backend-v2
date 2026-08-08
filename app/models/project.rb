@@ -18,6 +18,7 @@ class Project < ApplicationRecord
   has_many :memberships, class_name: "ProjectMembership", dependent: :destroy
   has_many :members, through: :memberships, source: :user
   has_many :ai_generations, dependent: :nullify
+  has_many :tasks, dependent: :destroy
 
   validates :title, presence: true, length: { maximum: 120 }
   validates :summary, length: { maximum: 2000 }, allow_nil: true

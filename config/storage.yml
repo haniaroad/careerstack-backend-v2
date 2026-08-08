@@ -1,0 +1,17 @@
+local:
+  service: Disk
+  root: <%= Rails.root.join("storage") %>
+
+test:
+  service: Disk
+  root: <%= Rails.root.join("tmp/storage") %>
+
+# Staging/production: private GCS bucket via env. Falls back to Disk if unset.
+google:
+  service: Disk
+  root: <%= Rails.root.join("storage") %>
+  # When google-cloud-storage is configured in a later infra pass, replace with:
+  # service: GCS
+  # project: <%= ENV.fetch("GCS_PROJECT_ID", "") %>
+  # bucket: <%= ENV.fetch("GCS_BUCKET", "") %>
+  # credentials: <%= ENV.fetch("GCS_CREDENTIALS_JSON", "") %>

@@ -102,6 +102,15 @@ Solid Queue is installed with a separate queue database connection and schema. *
 
 `AgeUpDetectionJob` is registered in [`config/recurring.yml`](config/recurring.yml) to run daily in production. It promotes organization-invited minors who have reached 18 in their organization's timezone, grants the Personal workspace and personal trial credit that were withheld, and flags them for visibility review so their profile stays private until they explicitly confirm. Run it on demand with `bin/rails runner AgeUpDetectionJob.perform_now`.
 
+## AI (OpenRouter)
+
+Set `OPENROUTER_API_KEY` for project draft generation and solo task review. Runtime controls:
+
+- `AI_KILL_SWITCH` / `AI_BUDGET_STOP` — reject new generation and review work without provider calls
+- `AI_INLINE_JOBS=true` — run AI jobs in-process (default for local Compose without a worker)
+
+Evidence files use Active Storage (Disk locally under `storage/`; configure private GCS for staging/production in `config/storage.yml`).
+
 ## Tests and quality
 
 ```bash
