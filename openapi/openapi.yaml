@@ -532,7 +532,7 @@ paths:
           $ref: "#/components/responses/Unauthenticated"
     post:
       operationId: createProjectDraft
-      summary: Create a manual solo project draft (no credit consume)
+      summary: Create a project draft (solo or team; no credit consume)
       tags: [Projects]
       requestBody:
         required: true
@@ -548,6 +548,20 @@ paths:
                   type: string
                   nullable: true
                 skills:
+                  type: array
+                  items:
+                    type: string
+                mode:
+                  type: string
+                  enum: [solo, team]
+                joining_mode:
+                  type: string
+                  enum: [application, instant, invite_only]
+                capacity:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                roles_needed:
                   type: array
                   items:
                     type: string
@@ -682,7 +696,7 @@ paths:
   /api/v1/projects/{id}/cancel:
     post:
       operationId: cancelProject
-      summary: Cancel an active solo project and restore the create credit
+      summary: Cancel an active project (solo restores create credit; team restores join credits)
       tags: [Projects]
       parameters:
         - name: id
@@ -704,6 +718,147 @@ paths:
                     $ref: "#/components/schemas/Project"
                   session:
                     $ref: "#/components/schemas/Session"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+  /api/v1/projects/{id}/convert_to_team:
+    post:
+      operationId: convertProjectToTeam
+      summary: Convert an active solo project to team (no credit charge)
+      tags: [Projects]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [joining_mode, capacity, roles_needed]
+              properties:
+                joining_mode:
+                  type: string
+                  enum: [application, instant, invite_only]
+                capacity:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                roles_needed:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        "200":
+          description: Project converted
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [project]
+                properties:
+                  project:
+                    $ref: "#/components/schemas/Project"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+  /api/v1/projects/{id}/join:
+    post:
+      operationId: instantJoinProject
+      summary: Instant-join a team project and consume one membership credit
+      tags: [Projects]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [participant_role]
+              properties:
+                participant_role:
+                  type: string
+      responses:
+        "201":
+          description: Membership created
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "409":
+          description: Capacity full or invitee unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+  /api/v1/projects/{id}/leave:
+    post:
+      operationId: leaveProject
+      summary: Leave a team project as a participant (no join-credit refund)
+      tags: [Projects]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason_category]
+              properties:
+                reason_category:
+                  type: string
+                reason_detail:
+                  type: string
+      responses:
+        "200":
+          description: Membership departed
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+  /api/v1/tasks/{task_id}/assignment:
+    patch:
+      operationId: updateTaskAssignment
+      summary: Assign or unassign a pending team task (creator only)
+      tags: [Tasks]
+      parameters:
+        - name: task_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                assignee_id:
+                  type: string
+                  format: uuid
+                  nullable: true
+      responses:
+        "200":
+          description: Task assignment updated
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "422":
@@ -1106,7 +1261,26 @@ components:
             type: string
         mode:
           type: string
-          enum: [solo]
+          enum: [solo, team]
+        joining_mode:
+          type: string
+          enum: [application, instant, invite_only]
+          nullable: true
+        capacity:
+          type: integer
+          minimum: 1
+          maximum: 5
+          nullable: true
+        participant_count:
+          type: integer
+          nullable: true
+        seats_remaining:
+          type: integer
+          nullable: true
+        recruitment_state:
+          type: string
+          enum: [open, full, closed]
+          nullable: true
         status:
           type: string
           enum: [draft, active, cancelled]

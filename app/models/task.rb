@@ -17,7 +17,7 @@ class Task < ApplicationRecord
   SUBMITTABLE_STATUSES = [ STATUS_PENDING, STATUS_CORRECTIONS_REQUESTED ].freeze
 
   belongs_to :project
-  belongs_to :assignee, class_name: "User"
+  belongs_to :assignee, class_name: "User", optional: true
   has_many :submissions, class_name: "TaskSubmission", dependent: :destroy
   has_many :ai_reviews, dependent: :destroy
 

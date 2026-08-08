@@ -17,6 +17,7 @@ module Projects
       ActiveRecord::Base.transaction do
         @project.lock!
         raise DomainError.new("Only draft projects can be confirmed", code: "validation_error") unless @project.draft?
+        validate_team_ready! if @project.team?
 
         if ProjectMembership.active_participation?(@user)
           raise ActiveParticipationConflict
@@ -46,7 +47,8 @@ module Projects
           status: ProjectMembership::STATUS_ACTIVE
         )
 
-        Tasks::MaterializeFromProposed.call(project: @project, assignee: @user)
+        assignee = @project.solo? ? @user : nil
+        Tasks::MaterializeFromProposed.call(project: @project, assignee: assignee)
       end
 
       @project.reload
@@ -57,6 +59,18 @@ module Projects
     def authorize!
       raise DomainError.new("Only the creator can confirm this project", code: "forbidden", status: :forbidden) unless @project.creator_id == @user.id
       raise DomainError.new("Not a member of this workspace", code: "forbidden", status: :forbidden) unless @user.member_of_workspace?(@project.workspace)
+    end
+
+    def validate_team_ready!
+      unless Project::JOINING_MODES.include?(@project.joining_mode.to_s)
+        raise DomainError.new("Joining mode is required for team projects", code: "validation_error")
+      end
+      unless @project.capacity.to_i.between?(1, 5)
+        raise DomainError.new("Capacity must be between 1 and 5", code: "validation_error")
+      end
+      if Array(@project.roles_needed).blank?
+        raise DomainError.new("At least one role is required for team projects", code: "validation_error")
+      end
     end
   end
 end

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_08_07_200200) do
+ActiveRecord::Schema[8.0].define(version: 2026_08_08_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -292,6 +292,57 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_07_200200) do
     t.index ["organization_id"], name: "index_programs_on_organization_id"
   end
 
+  create_table "project_applications", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "project_id", null: false
+    t.uuid "applicant_id", null: false
+    t.string "requested_role", null: false
+    t.text "motivation", null: false
+    t.boolean "availability_confirmed", default: false, null: false
+    t.jsonb "skills", default: [], null: false
+    t.string "portfolio_url"
+    t.string "github_url"
+    t.string "resume_url"
+    t.string "status", default: "pending", null: false
+    t.text "rejection_reason"
+    t.uuid "reviewed_by_id"
+    t.datetime "reviewed_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["applicant_id"], name: "index_project_applications_on_applicant_id"
+    t.index ["project_id", "applicant_id", "status"], name: "idx_on_project_id_applicant_id_status_438a336b2c"
+    t.index ["project_id"], name: "index_project_applications_on_project_id"
+  end
+
+  create_table "project_invitations", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "project_id", null: false
+    t.uuid "inviter_id", null: false
+    t.uuid "invitee_id", null: false
+    t.string "requested_role", null: false
+    t.string "status", default: "pending", null: false
+    t.datetime "responded_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["invitee_id"], name: "index_project_invitations_on_invitee_id"
+    t.index ["project_id", "invitee_id", "status"], name: "idx_on_project_id_invitee_id_status_9fcc4028a3"
+    t.index ["project_id"], name: "index_project_invitations_on_project_id"
+  end
+
+  create_table "project_membership_events", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "project_membership_id", null: false
+    t.uuid "project_id", null: false
+    t.uuid "user_id", null: false
+    t.uuid "actor_user_id"
+    t.string "event_type", null: false
+    t.string "reason_category"
+    t.text "reason_detail"
+    t.string "join_source"
+    t.string "participant_role"
+    t.datetime "created_at", null: false
+    t.index ["project_id"], name: "index_project_membership_events_on_project_id"
+    t.index ["project_membership_id"], name: "index_project_membership_events_on_project_membership_id"
+    t.index ["user_id"], name: "index_project_membership_events_on_user_id"
+  end
+
   create_table "project_memberships", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.uuid "project_id", null: false
     t.uuid "user_id", null: false
@@ -299,6 +350,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_07_200200) do
     t.string "status", default: "active", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "participant_role"
+    t.string "join_source"
     t.index ["project_id", "user_id"], name: "index_project_memberships_on_project_id_and_user_id", unique: true
     t.index ["project_id"], name: "index_project_memberships_on_project_id"
     t.index ["user_id", "status"], name: "index_project_memberships_on_user_id_and_status"
@@ -327,6 +380,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_07_200200) do
     t.text "submission_expectations"
     t.string "source", default: "manual", null: false
     t.datetime "ai_generation_succeeded_at"
+    t.string "joining_mode"
+    t.integer "capacity"
     t.index ["creator_id", "status"], name: "index_projects_on_creator_id_and_status"
     t.index ["creator_id"], name: "index_projects_on_creator_id"
     t.index ["workspace_id", "status"], name: "index_projects_on_workspace_id_and_status"
@@ -376,7 +431,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_07_200200) do
 
   create_table "tasks", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.uuid "project_id", null: false
-    t.uuid "assignee_id", null: false
+    t.uuid "assignee_id"
     t.string "title", limit: 200, null: false
     t.text "acceptance_criteria"
     t.text "submission_expectations"
@@ -473,6 +528,16 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_07_200200) do
   add_foreign_key "profiles", "taxonomy_terms", column: "target_role_term_id"
   add_foreign_key "profiles", "users"
   add_foreign_key "programs", "organizations"
+  add_foreign_key "project_applications", "projects"
+  add_foreign_key "project_applications", "users", column: "applicant_id"
+  add_foreign_key "project_applications", "users", column: "reviewed_by_id"
+  add_foreign_key "project_invitations", "projects"
+  add_foreign_key "project_invitations", "users", column: "invitee_id"
+  add_foreign_key "project_invitations", "users", column: "inviter_id"
+  add_foreign_key "project_membership_events", "project_memberships"
+  add_foreign_key "project_membership_events", "projects"
+  add_foreign_key "project_membership_events", "users"
+  add_foreign_key "project_membership_events", "users", column: "actor_user_id"
   add_foreign_key "project_memberships", "projects"
   add_foreign_key "project_memberships", "users"
   add_foreign_key "projects", "users", column: "creator_id"
