@@ -25,6 +25,11 @@ class TaskSerializer
       position: @task.position,
       first_submitted_at: @task.first_submitted_at,
       on_time: @task.on_time,
+      review_overdue_at: @task.review_overdue_at,
+      creator_review_decision: @task.creator_review_decision,
+      creator_review_feedback: @task.creator_review_feedback,
+      creator_reviewed_by_id: @task.creator_reviewed_by_id,
+      creator_reviewed_at: @task.creator_reviewed_at,
       created_at: @task.created_at,
       updated_at: @task.updated_at
     }

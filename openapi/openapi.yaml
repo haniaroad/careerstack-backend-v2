@@ -1752,6 +1752,73 @@ components:
           description: Submission created
         "422":
           $ref: "#/components/responses/UnprocessableEntity"
+  /api/v1/tasks/{task_id}/creator_review:
+    post:
+      operationId: createCreatorReview
+      summary: Creator approve or request corrections on a team task submission
+      tags: [Tasks]
+      parameters:
+        - name: task_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision]
+              properties:
+                decision:
+                  type: string
+                  enum: [approved, corrections_requested]
+                feedback:
+                  type: string
+      responses:
+        "200":
+          description: Task updated with creator decision
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+  /api/v1/inbox/items:
+    get:
+      operationId: listInboxItems
+      summary: List workspace Inbox Approvals items
+      tags: [Inbox]
+      parameters:
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [task_review, application, invitation, alert]
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100 }
+      responses:
+        "200":
+          description: Inbox items for the active workspace
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+  /api/v1/inbox/items/{id}:
+    get:
+      operationId: getInboxItem
+      summary: Get a single Inbox item by composite id
+      tags: [Inbox]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+          description: Composite id such as task_review:uuid
+      responses:
+        "200":
+          description: Inbox item
+        "404":
+          $ref: "#/components/responses/NotFound"
   /api/v1/tasks/{task_id}/ai_reviews:
     post:
       operationId: createTaskAiReview

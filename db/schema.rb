@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_08_08_120000) do
+ActiveRecord::Schema[8.0].define(version: 2026_08_08_140000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -207,6 +207,50 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_08_120000) do
     t.index ["user_id"], name: "index_credit_refund_requests_on_user_id"
   end
 
+  create_table "escalations", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "workspace_id", null: false
+    t.uuid "project_id", null: false
+    t.string "target", null: false
+    t.uuid "organization_id"
+    t.string "reason", null: false
+    t.string "subject_type", null: false
+    t.uuid "subject_id", null: false
+    t.string "status", default: "open", null: false
+    t.string "idempotency_key", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["idempotency_key"], name: "index_escalations_on_idempotency_key", unique: true
+    t.index ["organization_id"], name: "index_escalations_on_organization_id"
+    t.index ["project_id"], name: "index_escalations_on_project_id"
+    t.index ["status"], name: "index_escalations_on_status"
+    t.index ["subject_type", "subject_id"], name: "index_escalations_on_subject_type_and_subject_id"
+    t.index ["workspace_id"], name: "index_escalations_on_workspace_id"
+  end
+
+  create_table "inbox_alerts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "workspace_id", null: false
+    t.uuid "recipient_user_id"
+    t.uuid "organization_id"
+    t.string "audience", default: "user", null: false
+    t.string "kind", null: false
+    t.string "subject_type", null: false
+    t.uuid "subject_id", null: false
+    t.uuid "project_id"
+    t.string "title", null: false
+    t.text "body", null: false
+    t.string "urgency", default: "medium", null: false
+    t.boolean "overdue", default: false, null: false
+    t.string "idempotency_key", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["idempotency_key"], name: "index_inbox_alerts_on_idempotency_key", unique: true
+    t.index ["organization_id"], name: "index_inbox_alerts_on_organization_id"
+    t.index ["project_id"], name: "index_inbox_alerts_on_project_id"
+    t.index ["recipient_user_id"], name: "index_inbox_alerts_on_recipient_user_id"
+    t.index ["subject_type", "subject_id"], name: "index_inbox_alerts_on_subject_type_and_subject_id"
+    t.index ["workspace_id"], name: "index_inbox_alerts_on_workspace_id"
+  end
+
   create_table "invitations", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.uuid "organization_id", null: false
     t.uuid "program_id"
@@ -308,9 +352,12 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_08_120000) do
     t.datetime "reviewed_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.datetime "overdue_at"
     t.index ["applicant_id"], name: "index_project_applications_on_applicant_id"
+    t.index ["overdue_at"], name: "index_project_applications_on_overdue_at"
     t.index ["project_id", "applicant_id", "status"], name: "idx_on_project_id_applicant_id_status_438a336b2c"
     t.index ["project_id"], name: "index_project_applications_on_project_id"
+    t.index ["status", "created_at"], name: "index_project_applications_on_status_and_created_at"
   end
 
   create_table "project_invitations", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -442,10 +489,18 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_08_120000) do
     t.boolean "on_time"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "creator_review_decision"
+    t.text "creator_review_feedback"
+    t.uuid "creator_reviewed_by_id"
+    t.datetime "creator_reviewed_at"
+    t.datetime "review_overdue_at"
     t.index ["assignee_id", "status"], name: "index_tasks_on_assignee_id_and_status"
     t.index ["assignee_id"], name: "index_tasks_on_assignee_id"
+    t.index ["creator_reviewed_by_id"], name: "index_tasks_on_creator_reviewed_by_id"
     t.index ["project_id", "status"], name: "index_tasks_on_project_id_and_status"
     t.index ["project_id"], name: "index_tasks_on_project_id"
+    t.index ["review_overdue_at"], name: "index_tasks_on_review_overdue_at"
+    t.index ["status", "first_submitted_at"], name: "index_tasks_on_status_and_first_submitted_at"
   end
 
   create_table "taxonomies", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -514,6 +569,13 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_08_120000) do
   add_foreign_key "credit_purchases", "users"
   add_foreign_key "credit_refund_requests", "credit_purchases"
   add_foreign_key "credit_refund_requests", "users"
+  add_foreign_key "escalations", "organizations"
+  add_foreign_key "escalations", "projects"
+  add_foreign_key "escalations", "workspaces"
+  add_foreign_key "inbox_alerts", "organizations"
+  add_foreign_key "inbox_alerts", "projects"
+  add_foreign_key "inbox_alerts", "users", column: "recipient_user_id"
+  add_foreign_key "inbox_alerts", "workspaces"
   add_foreign_key "invitations", "organizations"
   add_foreign_key "invitations", "programs"
   add_foreign_key "invitations", "users", column: "accepted_by_user_id"
@@ -548,6 +610,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_08_120000) do
   add_foreign_key "task_submissions", "users", column: "submitted_by_id"
   add_foreign_key "tasks", "projects"
   add_foreign_key "tasks", "users", column: "assignee_id"
+  add_foreign_key "tasks", "users", column: "creator_reviewed_by_id"
   add_foreign_key "taxonomy_terms", "taxonomies"
   add_foreign_key "users", "workspaces", column: "active_workspace_id"
   add_foreign_key "users", "workspaces", column: "personal_workspace_id"
