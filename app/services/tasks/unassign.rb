@@ -14,6 +14,7 @@ module Tasks
     def call
       project = @task.project
       raise DomainError.new("Only the creator can unassign tasks", code: "forbidden", status: :forbidden) unless project.creator_id == @actor.id
+      Projects::Lifecycle::ActionGate.assert!(project: project, action: :assign)
       raise DomainError.new("Only pending tasks can be unassigned", code: "validation_error") unless @task.pending?
 
       @task.update!(assignee: nil)

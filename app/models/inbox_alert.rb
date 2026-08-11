@@ -8,7 +8,8 @@ class InboxAlert < ApplicationRecord
   KIND_CREATOR_REMINDER = "creator_reminder"
   KIND_ESCALATION = "escalation"
   KIND_DECISION = "decision"
-  KINDS = [ KIND_CREATOR_REMINDER, KIND_ESCALATION, KIND_DECISION ].freeze
+  KIND_LIFECYCLE = "lifecycle"
+  KINDS = [ KIND_CREATOR_REMINDER, KIND_ESCALATION, KIND_DECISION, KIND_LIFECYCLE ].freeze
 
   URGENCY_CRITICAL = "critical"
   URGENCY_HIGH = "high"

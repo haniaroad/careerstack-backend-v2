@@ -25,7 +25,7 @@ RSpec.describe Tasks::CreatorReview do
     )
   end
 
-  def team_with_submitted_task(ends_on: nil)
+  def team_with_submitted_task(ends_on: Date.current + 30)
     creator = create_onboarded_adult(email: "creator-review-#{SecureRandom.hex(3)}@example.com")
     participant = create_onboarded_adult(email: "assignee-#{SecureRandom.hex(3)}@example.com")
     organization = create_organization(name: "Review Org #{SecureRandom.hex(3)}")
@@ -44,8 +44,9 @@ RSpec.describe Tasks::CreatorReview do
       capacity: 3,
       roles_needed: [ "Designer" ]
     )
+    confirm_ends_on = ends_on >= Date.current ? ends_on : (Date.current + 30)
     project.update!(
-      ends_on: ends_on,
+      ends_on: confirm_ends_on,
       proposed_tasks: [
         {
           "title" => "Design logo",
@@ -63,6 +64,8 @@ RSpec.describe Tasks::CreatorReview do
     task = project.tasks.first
     Tasks::Assign.call(task: task, actor: creator, assignee: participant)
     Tasks::Submit.call(task: task.reload, user: participant, body: "Here is my work", links: [], signed_blob_ids: [])
+
+    project.update_columns(ends_on: ends_on) if ends_on != confirm_ends_on
 
     { creator: creator, participant: participant, project: project.reload, task: task.reload, workspace: workspace }
   end
@@ -92,8 +95,8 @@ RSpec.describe Tasks::CreatorReview do
     expect(updated.creator_review_feedback).to eq("Add more detail")
   end
 
-  it "blocks corrections when fewer than 48 hours remain before ends_on" do
-    ctx = team_with_submitted_task(ends_on: 1.day.from_now.to_date)
+  it "blocks corrections when fewer than 48 hours remain before final expiration" do
+    ctx = team_with_submitted_task(ends_on: Date.current - 6)
 
     expect {
       described_class.call(
@@ -107,8 +110,8 @@ RSpec.describe Tasks::CreatorReview do
     }
   end
 
-  it "allows corrections when ends_on is blank" do
-    ctx = team_with_submitted_task(ends_on: nil)
+  it "allows corrections during grace when more than 48h remain before final expiration" do
+    ctx = team_with_submitted_task(ends_on: Date.current - 1)
 
     updated = described_class.call(
       task: ctx[:task],
@@ -138,6 +141,7 @@ RSpec.describe Tasks::CreatorReview do
       mode: Project::MODE_SOLO
     )
     solo.update!(
+      ends_on: Date.current + 30,
       proposed_tasks: [
         {
           "title" => "Solo task",

@@ -17,6 +17,7 @@ module Projects
       ActiveRecord::Base.transaction do
         @project.lock!
         raise DomainError.new("Only draft projects can be confirmed", code: "validation_error") unless @project.draft?
+        validate_ends_on!
         validate_team_ready! if @project.team?
 
         if ProjectMembership.active_participation?(@user)
@@ -59,6 +60,15 @@ module Projects
     def authorize!
       raise DomainError.new("Only the creator can confirm this project", code: "forbidden", status: :forbidden) unless @project.creator_id == @user.id
       raise DomainError.new("Not a member of this workspace", code: "forbidden", status: :forbidden) unless @user.member_of_workspace?(@project.workspace)
+    end
+
+    def validate_ends_on!
+      if @project.ends_on.blank?
+        raise DomainError.new("ends_on is required to confirm a project", code: "validation_error")
+      end
+      if @project.ends_on < Time.find_zone!("UTC").today
+        raise DomainError.new("ends_on must be today or in the future", code: "validation_error")
+      end
     end
 
     def validate_team_ready!

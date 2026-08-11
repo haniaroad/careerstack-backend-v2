@@ -166,12 +166,14 @@ RSpec.describe "Tasks and AI review API", type: :request do
   end
 
   it "restores create credit on cancel after submissions" do
+    stub_review_provider(decision: "corrections_requested", unmet: [ "more" ], next_action: "revise")
     project = create_active_project_with_tasks!
     task = project.tasks.first
     post "/api/v1/tasks/#{task.id}/submissions",
          params: { body: "Work" }.to_json,
          headers: headers
     expect(response).to have_http_status(:created)
+    expect(project.reload.status).to eq(Project::STATUS_ACTIVE)
 
     post "/api/v1/projects/#{project.id}/cancel", headers: headers
     expect(response).to have_http_status(:ok)

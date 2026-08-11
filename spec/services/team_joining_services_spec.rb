@@ -64,6 +64,7 @@ RSpec.describe "Team joining services" do
   end
 
   def confirm_team!(ctx)
+    ctx[:project].update!(ends_on: Date.current + 30) if ctx[:project].ends_on.blank?
     Projects::Confirm.call(project: ctx[:project], user: ctx[:creator])
     ctx[:project].reload
   end
@@ -419,12 +420,13 @@ RSpec.describe "Team joining services" do
         title: "Solo first",
         mode: Project::MODE_SOLO
       )
-      project.update!(
-        proposed_tasks: [
-          { "title" => "Solo task", "summary" => "Work", "recommended_due_date" => (Date.current + 3).iso8601 }
-        ]
-      )
-      Projects::Confirm.call(project: project, user: creator)
+    project.update!(
+      ends_on: Date.current + 30,
+      proposed_tasks: [
+        { "title" => "Solo task", "summary" => "Work", "recommended_due_date" => (Date.current + 3).iso8601 }
+      ]
+    )
+    Projects::Confirm.call(project: project, user: creator)
       expect(project.reload.solo?).to eq(true)
       expect(project.tasks.first.assignee_id).to eq(creator.id)
 

@@ -104,6 +104,8 @@ Solid Queue is installed with a separate queue database connection and schema. *
 
 `InboxOverdueEscalationJob` is registered hourly in production. It marks overdue applications and team task reviews (>72h), creates creator reminder alerts, and opens durable escalations (Personal → staff target; Organization → org managers/admins with Inbox alerts). Email delivery remains deferred to the notifications change. Run on demand with `bin/rails runner InboxOverdueEscalationJob.perform_now`.
 
+`ProjectLifecycleSweepJob` is registered hourly in production. It evaluates active projects with an `ends_on` date: derived phases use UTC calendar boundaries (`ending_soon` within 7 days of end, `grace_period` for 7 days after end, then `expired`). Confirm requires `ends_on`. Expiration marks unresolved tasks `incomplete` and does not restore credits; all tasks assigned and approved auto-complete the project. Lifecycle Inbox alerts use kind `lifecycle`. Run on demand with `bin/rails runner ProjectLifecycleSweepJob.perform_now`.
+
 ## AI (OpenRouter)
 
 Set `OPENROUTER_API_KEY` for project draft generation and solo task review. Runtime controls:
@@ -122,7 +124,7 @@ Team projects support `application`, `instant`, and `invite_only` joining modes 
 - `POST /api/v1/projects/:project_id/invitations` and `POST /api/v1/project_invitations/:id/accept|decline`
 - `PATCH /api/v1/tasks/:task_id/assignment`
 
-Creator task review / Inbox remains a later change; team submissions may stay `submitted` until then.
+Creator team task review and Inbox Approvals are live. Project completion, grace, and expiration close the timebox after the preferred end date.
 
 ## Tests and quality
 

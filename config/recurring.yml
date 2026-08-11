@@ -25,3 +25,7 @@ production:
     class: InboxOverdueEscalationJob
     queue: default
     schedule: every hour at minute 20
+  project_lifecycle_sweep:
+    class: ProjectLifecycleSweepJob
+    queue: default
+    schedule: every hour at minute 35

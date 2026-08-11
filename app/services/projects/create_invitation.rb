@@ -16,6 +16,7 @@ module Projects
     def call
       raise DomainError.new("Only the creator can invite", code: "forbidden", status: :forbidden) unless @project.creator_id == @inviter.id
       raise DomainError.new("Only team projects accept invitations", code: "validation_error") unless @project.team?
+      Projects::Lifecycle::ActionGate.assert!(project: @project, action: :join)
       raise DomainError.new("Project is not accepting invites", code: "validation_error") unless @project.joinable?
       raise DomainError.new("Cannot invite the creator", code: "validation_error") if @invitee.id == @project.creator_id
       Projects::JoinEligibility.assert_can_join!(project: @project, user: @invitee)

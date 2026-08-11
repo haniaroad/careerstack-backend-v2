@@ -24,9 +24,11 @@ module Projects
 
     def call
       validate_inputs!
+      Projects::Lifecycle::ActionGate.assert!(project: @project, action: :join)
 
       ActiveRecord::Base.transaction do
         @project.lock!
+        Projects::Lifecycle::ActionGate.assert!(project: @project.reload, action: :join)
 
         existing = @project.memberships.find_by(user_id: @user.id)
         if existing&.active?
@@ -38,6 +40,9 @@ module Projects
         end
         if @project.seats_remaining <= 0
           raise DomainError.new("Project is at capacity", code: "capacity_full", status: :conflict)
+        end
+        unless @project.joinable?
+          raise DomainError.new("Project is not joinable", code: "validation_error")
         end
 
         if ProjectMembership.active_participation?(@user)

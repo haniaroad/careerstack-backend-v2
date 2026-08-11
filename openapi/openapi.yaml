@@ -1283,7 +1283,10 @@ components:
           nullable: true
         status:
           type: string
-          enum: [draft, active, cancelled]
+          enum: [draft, active, completed, expired, cancelled, archived]
+        phase:
+          type: string
+          enum: [normal, ending_soon, grace_period, read_only]
         source:
           type: string
           enum: [manual, ai]
@@ -1299,6 +1302,10 @@ components:
         ends_on:
           type: string
           format: date
+          nullable: true
+        final_expires_at:
+          type: string
+          format: date-time
           nullable: true
         definition_of_done:
           type: string
@@ -1325,6 +1332,14 @@ components:
           type: string
           format: uuid
         confirmed_at:
+          type: string
+          format: date-time
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        expired_at:
           type: string
           format: date-time
           nullable: true

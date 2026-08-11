@@ -7,7 +7,7 @@ RSpec.describe Ai::CreateTaskReview do
 
   def build_submitted_task!
     project = Projects::CreateDraft.call(user: user, workspace: user.personal_workspace, title: "P")
-    project.update!(proposed_tasks: [ { "title" => "T1", "summary" => "Do it", "recommended_due_date" => (Date.current + 5).iso8601 } ])
+    project.update!(proposed_tasks: [ { "title" => "T1", "summary" => "Do it", "recommended_due_date" => (Date.current + 5).iso8601 } ], ends_on: Date.current + 14)
     Projects::Confirm.call(project: project, user: user)
     task = project.tasks.first
     result = Tasks::Submit.call(task: task, user: user, body: "Evidence text", enqueue_review: false)
@@ -29,10 +29,10 @@ RSpec.describe Ai::CreateTaskReview do
       end
       Ai::CompletionResult.new(
         content: {
-          decision: "approved",
-          feedback: "ok",
-          unmet_requirements: [],
-          next_action: "done",
+          decision: "corrections_requested",
+          feedback: "needs work",
+          unmet_requirements: [ "more detail" ],
+          next_action: "revise",
           analysis_incomplete: false,
           unsupported_items: []
         }.to_json,

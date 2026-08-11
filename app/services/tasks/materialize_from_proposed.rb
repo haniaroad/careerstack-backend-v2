@@ -18,6 +18,9 @@ module Tasks
         task_hash = raw.is_a?(Hash) ? raw.with_indifferent_access : {}
         title = task_hash[:title].presence || "Task #{index + 1}"
         due_on = parse_date(task_hash[:recommended_due_date])
+        if due_on.present? && @project.ends_on.present? && due_on > @project.ends_on
+          due_on = @project.ends_on
+        end
 
         Task.create!(
           project: @project,

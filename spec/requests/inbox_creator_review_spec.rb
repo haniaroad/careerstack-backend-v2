@@ -48,6 +48,7 @@ RSpec.describe "Inbox and creator review API", type: :request do
       roles_needed: [ "Designer" ]
     )
     project.update!(
+      ends_on: Date.current + 30,
       proposed_tasks: [
         {
           "title" => "Ship mock",

@@ -6,12 +6,14 @@ module Api
       def index
         workspace = require_workspace!
         projects = visible_projects(workspace).order(updated_at: :desc)
+        projects.each { |p| evaluate_if_overdue!(p) }
         render json: { projects: projects.map { |p| ProjectSerializer.call(p, include_tasks: false, viewer: current_user) } }
       end
 
       def show
         project = find_visible_or_joinable_project!
-        render json: { project: ProjectSerializer.call(project, viewer: current_user) }
+        evaluate_if_overdue!(project)
+        render json: { project: ProjectSerializer.call(project.reload, viewer: current_user) }
       end
 
       def create
@@ -31,7 +33,18 @@ module Api
       end
 
       def update
-        project = find_creator_draft!
+        project = find_creator_project!
+        if project.active? && params.key?(:ends_on)
+          updated = Projects::UpdateEndsOn.call(
+            project: project,
+            user: current_user,
+            ends_on: params[:ends_on]
+          )
+          return render json: { project: ProjectSerializer.call(updated, viewer: current_user) }
+        end
+
+        raise DomainError.new("Only draft projects can be modified this way", code: "validation_error") unless project.draft?
+
         updated = Projects::UpdateDraft.call(
           project: project,
           user: current_user,
@@ -211,6 +224,12 @@ module Api
         raise DomainError.new("Only draft projects can be modified this way", code: "validation_error") unless project.draft?
 
         project
+      end
+
+      def evaluate_if_overdue!(project)
+        return unless project.active? && project.past_final_expiration?
+
+        Projects::Lifecycle::Evaluate.call(project: project)
       end
 
       def membership_payload(membership)
