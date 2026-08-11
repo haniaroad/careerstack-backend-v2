@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_08_08_140000) do
+ActiveRecord::Schema[8.0].define(version: 2026_08_11_180000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -429,6 +429,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_08_140000) do
     t.datetime "ai_generation_succeeded_at"
     t.string "joining_mode"
     t.integer "capacity"
+    t.datetime "completed_at"
+    t.datetime "expired_at"
     t.index ["creator_id", "status"], name: "index_projects_on_creator_id_and_status"
     t.index ["creator_id"], name: "index_projects_on_creator_id"
     t.index ["workspace_id", "status"], name: "index_projects_on_workspace_id_and_status"

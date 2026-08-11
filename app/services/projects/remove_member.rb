@@ -25,9 +25,11 @@ module Projects
         raise DomainError.new("Invalid reason category", code: "validation_error")
       end
       authorize!
+      Projects::Lifecycle::ActionGate.assert!(project: @project, action: :remove)
 
       ActiveRecord::Base.transaction do
         @project.lock!
+        Projects::Lifecycle::ActionGate.assert!(project: @project.reload, action: :remove)
         membership = @project.memberships.active.find_by(user_id: @member_user.id)
         raise DomainError.new("Not an active participant", code: "validation_error") if membership.nil?
         raise DomainError.new("Cannot remove the creator", code: "validation_error") if membership.creator?

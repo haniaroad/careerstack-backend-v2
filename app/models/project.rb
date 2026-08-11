@@ -16,12 +16,31 @@ class Project < ApplicationRecord
 
   STATUS_DRAFT = "draft"
   STATUS_ACTIVE = "active"
+  STATUS_COMPLETED = "completed"
+  STATUS_EXPIRED = "expired"
   STATUS_CANCELLED = "cancelled"
-  STATUSES = [ STATUS_DRAFT, STATUS_ACTIVE, STATUS_CANCELLED ].freeze
+  STATUS_ARCHIVED = "archived"
+  STATUSES = [
+    STATUS_DRAFT,
+    STATUS_ACTIVE,
+    STATUS_COMPLETED,
+    STATUS_EXPIRED,
+    STATUS_CANCELLED,
+    STATUS_ARCHIVED
+  ].freeze
+
+  PHASE_NORMAL = "normal"
+  PHASE_ENDING_SOON = "ending_soon"
+  PHASE_GRACE_PERIOD = "grace_period"
+  PHASE_READ_ONLY = "read_only"
+  PHASES = [ PHASE_NORMAL, PHASE_ENDING_SOON, PHASE_GRACE_PERIOD, PHASE_READ_ONLY ].freeze
 
   SOURCE_MANUAL = "manual"
   SOURCE_AI = "ai"
   SOURCES = [ SOURCE_MANUAL, SOURCE_AI ].freeze
+
+  GRACE_DAYS = 7
+  ENDING_SOON_DAYS = 7
 
   belongs_to :workspace
   belongs_to :creator, class_name: "User"
@@ -56,8 +75,20 @@ class Project < ApplicationRecord
     status == STATUS_ACTIVE
   end
 
+  def completed?
+    status == STATUS_COMPLETED
+  end
+
+  def expired?
+    status == STATUS_EXPIRED
+  end
+
   def cancelled?
     status == STATUS_CANCELLED
+  end
+
+  def archived?
+    status == STATUS_ARCHIVED
   end
 
   def solo?
@@ -94,9 +125,51 @@ class Project < ApplicationRecord
     [ capacity - active_participant_count, 0 ].max
   end
 
+  # Derived lifecycle phase (UTC calendar dates). Not persisted.
+  def phase
+    return PHASE_READ_ONLY if completed? || expired? || cancelled? || archived?
+    return PHASE_NORMAL unless active?
+    return PHASE_NORMAL if ends_on.blank?
+
+    today = utc_today
+    if today <= ends_on - (ENDING_SOON_DAYS + 1).days
+      PHASE_NORMAL
+    elsif today <= ends_on
+      PHASE_ENDING_SOON
+    else
+      # Includes days past final expiration while status is still active (until Evaluate runs).
+      PHASE_GRACE_PERIOD
+    end
+  end
+
+  def final_expires_at
+    return nil if ends_on.blank?
+
+    (ends_on + GRACE_DAYS.days).in_time_zone("UTC").end_of_day
+  end
+
+  def past_final_expiration?
+    return false if ends_on.blank?
+
+    utc_today > ends_on + GRACE_DAYS.days
+  end
+
+  def grace_period?
+    phase == PHASE_GRACE_PERIOD
+  end
+
+  def ending_soon?
+    phase == PHASE_ENDING_SOON
+  end
+
+  def read_only_phase?
+    phase == PHASE_READ_ONLY
+  end
+
   def recruitment_state
     return nil unless team?
     return RECRUITMENT_CLOSED unless active?
+    return RECRUITMENT_CLOSED if grace_period? || past_final_expiration? || completed? || expired?
     return RECRUITMENT_FULL if seats_remaining <= 0
 
     RECRUITMENT_OPEN
@@ -106,11 +179,22 @@ class Project < ApplicationRecord
     team? && active? && recruitment_state == RECRUITMENT_OPEN
   end
 
+  def ensure_lifecycle_current!
+    return self unless active? && past_final_expiration?
+
+    Projects::Lifecycle::Evaluate.call(project: self)
+    reload
+  end
+
   def non_creator_memberships_exist?
     memberships.where.not(role: ProjectMembership::ROLE_CREATOR).exists?
   end
 
   private
+
+  def utc_today
+    Time.find_zone!("UTC").today
+  end
 
   def skills_are_strings
     return if skills.blank?

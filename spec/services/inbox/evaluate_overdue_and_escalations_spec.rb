@@ -37,6 +37,7 @@ RSpec.describe Inbox::EvaluateOverdueAndEscalations do
       capacity: 2,
       roles_needed: [ "Engineer" ]
     )
+    project.update!(ends_on: Date.current + 30)
     Projects::Confirm.call(project: project, user: creator)
 
     application = Projects::SubmitApplication.call(

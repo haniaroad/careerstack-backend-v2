@@ -31,6 +31,7 @@ module Projects
 
     def call
       Projects::JoinEligibility.assert_can_join!(project: @project, user: @user)
+      Projects::Lifecycle::ActionGate.assert!(project: @project, action: :join)
       unless @project.joining_mode == Project::JOINING_APPLICATION
         raise DomainError.new("This project does not accept applications", code: "validation_error")
       end

@@ -19,11 +19,14 @@ module Tasks
     def call
       project = @task.project
       authorize!(project)
+      Projects::Lifecycle::ActionGate.assert!(project: project, action: :review_decide)
       validate_state!(project)
 
       ActiveRecord::Base.transaction do
         @task.lock!
-        validate_state!(project.reload)
+        project = @task.project.reload
+        Projects::Lifecycle::ActionGate.assert!(project: project, action: :review_decide)
+        validate_state!(project)
 
         case @decision
         when Task::DECISION_APPROVED
@@ -33,6 +36,10 @@ module Tasks
         else
           raise DomainError.new("decision must be approved or corrections_requested", code: "validation_error")
         end
+      end
+
+      if @decision == Task::DECISION_APPROVED
+        Projects::Lifecycle::Evaluate.call(project: @task.project.reload)
       end
 
       @task.reload
@@ -50,7 +57,7 @@ module Tasks
       unless project.mode == Project::MODE_TEAM
         raise DomainError.new("Creator review is only available for team projects", code: "validation_error")
       end
-      unless project.status == Project::STATUS_ACTIVE
+      unless project.active?
         raise DomainError.new("Project is not active", code: "validation_error")
       end
       unless @task.status == Task::STATUS_SUBMITTED
@@ -89,14 +96,14 @@ module Tasks
     end
 
     def enforce_corrections_window!(project)
-      return if project.ends_on.blank?
+      final_expiration = project.final_expires_at
+      return if final_expiration.blank?
 
-      final_expiration = project.ends_on.in_time_zone.end_of_day
       remaining = final_expiration - Time.current
       return if remaining >= CORRECTIONS_LEAD_TIME
 
       raise DomainError.new(
-        "Corrections can only be requested when at least 48 hours remain before project end",
+        "Corrections can only be requested when at least 48 hours remain before final expiration",
         code: "corrections_window_closed"
       )
     end

@@ -18,8 +18,11 @@ module Projects
         raise DomainError.new("Invalid reason category", code: "validation_error")
       end
 
+      Projects::Lifecycle::ActionGate.assert!(project: @project, action: :leave)
+
       ActiveRecord::Base.transaction do
         @project.lock!
+        Projects::Lifecycle::ActionGate.assert!(project: @project.reload, action: :leave)
         membership = @project.memberships.active.find_by(user_id: @user.id)
         raise DomainError.new("Not an active participant", code: "validation_error") if membership.nil?
         raise DomainError.new("Creator cannot leave; cancel the project instead", code: "validation_error") if membership.creator?

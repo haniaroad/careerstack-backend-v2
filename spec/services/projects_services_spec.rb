@@ -3,11 +3,16 @@
 require "rails_helper"
 
 RSpec.describe "Projects services" do
+  def with_ends_on!(project, ends_on: Date.current + 30)
+    project.update!(ends_on: ends_on)
+    project
+  end
+
   describe Projects::Confirm do
     it "activates the draft, creates membership, and consumes one credit" do
       user = create_onboarded_adult(email: "confirm@example.com")
       workspace = user.personal_workspace
-      project = Projects::CreateDraft.call(user: user, workspace: workspace, title: "Portfolio site")
+      project = with_ends_on!(Projects::CreateDraft.call(user: user, workspace: workspace, title: "Portfolio site"))
 
       expect {
         Projects::Confirm.call(project: project, user: user)
@@ -18,9 +23,23 @@ RSpec.describe "Projects services" do
       expect(project.memberships.active.find_by(user: user)).to be_present
     end
 
+    it "rejects confirm without ends_on" do
+      user = create_onboarded_adult(email: "no-end@example.com")
+      project = Projects::CreateDraft.call(user: user, workspace: user.personal_workspace, title: "No end")
+
+      expect {
+        Projects::Confirm.call(project: project, user: user)
+      }.to raise_error(DomainError) { |e|
+        expect(e.code).to eq("validation_error")
+        expect(e.message).to match(/ends_on/i)
+      }
+      expect(project.reload.status).to eq(Project::STATUS_DRAFT)
+      expect(Credits::Balance.remaining(owner: user)).to eq(1)
+    end
+
     it "is idempotent on double confirm after activation" do
       user = create_onboarded_adult(email: "idem@example.com")
-      project = Projects::CreateDraft.call(user: user, workspace: user.personal_workspace, title: "Once")
+      project = with_ends_on!(Projects::CreateDraft.call(user: user, workspace: user.personal_workspace, title: "Once"))
       Projects::Confirm.call(project: project, user: user)
 
       expect {
@@ -31,7 +50,7 @@ RSpec.describe "Projects services" do
 
     it "rejects insufficient credits without activating" do
       user = create_onboarded_adult(email: "broke@example.com")
-      project = Projects::CreateDraft.call(user: user, workspace: user.personal_workspace, title: "Need credits")
+      project = with_ends_on!(Projects::CreateDraft.call(user: user, workspace: user.personal_workspace, title: "Need credits"))
       Credits::Consume.call(
         owner: user,
         amount: 1,
@@ -50,10 +69,10 @@ RSpec.describe "Projects services" do
 
     it "blocks a second active participation" do
       user = create_onboarded_adult(email: "busy@example.com")
-      first = Projects::CreateDraft.call(user: user, workspace: user.personal_workspace, title: "First")
+      first = with_ends_on!(Projects::CreateDraft.call(user: user, workspace: user.personal_workspace, title: "First"))
       Projects::Confirm.call(project: first, user: user)
 
-      second = Projects::CreateDraft.call(user: user, workspace: user.personal_workspace, title: "Second")
+      second = with_ends_on!(Projects::CreateDraft.call(user: user, workspace: user.personal_workspace, title: "Second"))
       ref = "pi_test_#{SecureRandom.hex(4)}"
       lot = CreditLot.create!(
         owner: user,
@@ -84,7 +103,7 @@ RSpec.describe "Projects services" do
   describe Projects::Cancel do
     it "cancels an active solo project and restores one credit" do
       user = create_onboarded_adult(email: "cancel@example.com")
-      project = Projects::CreateDraft.call(user: user, workspace: user.personal_workspace, title: "Cancel me")
+      project = with_ends_on!(Projects::CreateDraft.call(user: user, workspace: user.personal_workspace, title: "Cancel me"))
       Projects::Confirm.call(project: project, user: user)
 
       expect {
@@ -97,7 +116,7 @@ RSpec.describe "Projects services" do
 
     it "does not double-restore on repeated cancel" do
       user = create_onboarded_adult(email: "cancel2@example.com")
-      project = Projects::CreateDraft.call(user: user, workspace: user.personal_workspace, title: "Cancel twice")
+      project = with_ends_on!(Projects::CreateDraft.call(user: user, workspace: user.personal_workspace, title: "Cancel twice"))
       Projects::Confirm.call(project: project, user: user)
       Projects::Cancel.call(project: project, user: user)
 

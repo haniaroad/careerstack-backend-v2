@@ -26,6 +26,7 @@ module Tasks
 
     def call
       authorize!
+      Projects::Lifecycle::ActionGate.assert!(project: @task.project, action: :submit)
       validate_state!
       blobs = resolve_blobs!
       EvidenceLimits.validate_files!(blobs)
@@ -35,6 +36,7 @@ module Tasks
       submission = nil
       ActiveRecord::Base.transaction do
         @task.lock!
+        Projects::Lifecycle::ActionGate.assert!(project: @task.project.reload, action: :submit)
         validate_state!
 
         attempt = @task.submissions.maximum(:attempt_number).to_i + 1
@@ -81,7 +83,7 @@ module Tasks
       raise DomainError.new("Not a member of this workspace", code: "forbidden", status: :forbidden) unless @user.member_of_workspace?(@task.project.workspace)
       membership = @task.project.memberships.active.find_by(user_id: @user.id)
       raise DomainError.new("Not a project participant", code: "forbidden", status: :forbidden) if membership.nil?
-      raise DomainError.new("Project is not active", code: "validation_error") unless @task.project.active?
+      @task.project.ensure_lifecycle_current!
     end
 
     def validate_state!

@@ -15,9 +15,16 @@ RSpec.describe "Projects API", type: :request do
     expect(response.parsed_body.dig("project", "status")).to eq("draft")
     expect(Credits::Balance.remaining(owner: user)).to eq(1)
 
+    patch "/api/v1/projects/#{project_id}",
+          params: { ends_on: (Date.current + 30).iso8601 }.to_json,
+          headers: headers.merge("CONTENT_TYPE" => "application/json")
+    expect(response).to have_http_status(:ok)
+
     post "/api/v1/projects/#{project_id}/confirm", headers: headers
     expect(response).to have_http_status(:ok)
     expect(response.parsed_body.dig("project", "status")).to eq("active")
+    expect(response.parsed_body.dig("project", "phase")).to eq("normal")
+    expect(response.parsed_body.dig("project", "final_expires_at")).to be_present
     expect(response.parsed_body.dig("session", "credits", "remaining")).to eq(0)
     expect(Credits::Balance.remaining(owner: user)).to eq(0)
 
@@ -28,11 +35,38 @@ RSpec.describe "Projects API", type: :request do
     get "/api/v1/projects/#{project_id}", headers: headers
     expect(response).to have_http_status(:ok)
     expect(response.parsed_body.dig("project", "title")).to eq("My solo project")
+    expect(response.parsed_body.dig("project", "phase")).to eq("normal")
 
     post "/api/v1/projects/#{project_id}/cancel", headers: headers
     expect(response).to have_http_status(:ok)
     expect(response.parsed_body.dig("project", "status")).to eq("cancelled")
     expect(response.parsed_body.dig("session", "credits", "remaining")).to eq(1)
+  end
+
+  it "rejects confirm without ends_on" do
+    post "/api/v1/projects",
+         params: { title: "No end date" }.to_json,
+         headers: headers.merge("CONTENT_TYPE" => "application/json")
+    project_id = response.parsed_body.dig("project", "id")
+
+    post "/api/v1/projects/#{project_id}/confirm", headers: headers
+    expect(response).to have_http_status(:unprocessable_entity)
+    expect(response.parsed_body.dig("error", "code")).to eq("validation_error")
+    expect(Credits::Balance.remaining(owner: user)).to eq(1)
+  end
+
+  it "lets the creator update ends_on on an active project" do
+    project = Projects::CreateDraft.call(user: user, workspace: user.personal_workspace, title: "Active ends")
+    project.update!(ends_on: Date.current + 14)
+    Projects::Confirm.call(project: project, user: user)
+    new_end = (Date.current + 40).iso8601
+
+    patch "/api/v1/projects/#{project.id}",
+          params: { ends_on: new_end }.to_json,
+          headers: headers.merge("CONTENT_TYPE" => "application/json")
+    expect(response).to have_http_status(:ok)
+    expect(response.parsed_body.dig("project", "ends_on")).to eq(new_end)
+    expect(response.parsed_body.dig("project", "phase")).to eq("normal")
   end
 
   it "returns insufficient_credits without activating" do
@@ -44,6 +78,7 @@ RSpec.describe "Projects API", type: :request do
       actor_user: user
     )
     project = Projects::CreateDraft.call(user: user, workspace: user.personal_workspace, title: "Blocked")
+    project.update!(ends_on: Date.current + 14)
 
     post "/api/v1/projects/#{project.id}/confirm", headers: headers
     expect(response).to have_http_status(:unprocessable_entity)

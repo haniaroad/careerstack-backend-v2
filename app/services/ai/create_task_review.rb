@@ -19,6 +19,7 @@ module Ai
 
     def call
       authorize!
+      enforce_lifecycle!
       return nil if blocked_by_runtime_and_auto?
 
       enforce_runtime_controls!
@@ -48,6 +49,12 @@ module Ai
     def authorize!
       raise DomainError.new("Only the assignee can request review", code: "forbidden", status: :forbidden) unless @task.assignee_id == @user.id
       raise DomainError.new("Submission does not belong to task", code: "validation_error") unless @submission.task_id == @task.id
+    end
+
+    def enforce_lifecycle!
+      project = @task.project
+      project.ensure_lifecycle_current!
+      Projects::Lifecycle::ActionGate.assert!(project: project.reload, action: :review_decide)
     end
 
     def blocked_by_runtime_and_auto?

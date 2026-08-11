@@ -16,6 +16,7 @@ module Tasks
       project = @task.project
       raise DomainError.new("Only the creator can assign tasks", code: "forbidden", status: :forbidden) unless project.creator_id == @actor.id
       raise DomainError.new("Only team projects use participant assignment", code: "validation_error") unless project.team?
+      Projects::Lifecycle::ActionGate.assert!(project: project, action: :assign)
       raise DomainError.new("Only pending tasks can be assigned", code: "validation_error") unless @task.pending?
       raise DomainError.new("Creator cannot be assigned project tasks", code: "validation_error") if @assignee.id == project.creator_id
 

@@ -23,6 +23,11 @@ module Tasks
           raise DomainError.new("Unknown review decision", code: "validation_error")
         end
       end
+
+      if @review.decision == AiReview::DECISION_APPROVED
+        Projects::Lifecycle::Evaluate.call(project: @task.project.reload)
+      end
+
       @task.reload
     end
   end
