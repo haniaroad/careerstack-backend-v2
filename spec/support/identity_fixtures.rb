@@ -32,7 +32,8 @@ module IdentityFixtures
   def create_onboarded_adult(email:, firebase_uid: nil)
     user = create_user(email: email, firebase_uid: firebase_uid)
     user.create_profile!(minimum_profile_attributes)
-    user.create_age_visibility_preference!
+    preference = user.create_age_visibility_preference!
+    preference.confirm_public_identity!
     user.update!(
       status: User::ACTIVE,
       onboarding_path: "independent",

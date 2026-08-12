@@ -8,6 +8,10 @@ Rails.application.routes.draw do
   namespace :api do
     namespace :v1 do
       get "session", to: "sessions#show"
+      get "profiles/me", to: "profiles#me"
+      patch "profiles/me", to: "profiles#update_me"
+      post "profiles/me/visibility", to: "profiles#visibility"
+      get "profiles/:slug", to: "profiles#show"
       post "onboarding/independent", to: "onboarding#independent"
       post "onboarding/organization_invited", to: "onboarding#organization_invited"
       get "workspaces", to: "workspaces#index"

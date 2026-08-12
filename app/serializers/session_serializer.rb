@@ -10,7 +10,7 @@ class SessionSerializer
     display_name country state_region career_goal
     current_role_term_id current_role_other experience_level
     target_role_term_id target_role_other
-    bio image_url github_url linkedin_url portfolio_url interests
+    bio image_url github_url linkedin_url portfolio_url interests slug
   ].freeze
 
   def self.call(user)
@@ -65,7 +65,11 @@ class SessionSerializer
     profile = @user.profile
     return nil if profile.nil?
 
-    PROFILE_FIELDS.index_with { |field| profile.public_send(field) }
+    Profiles::AssignSlug.call(profile: profile) if profile.slug.blank?
+    profile.reload
+    PROFILE_FIELDS.index_with { |field| profile.public_send(field) }.merge(
+      visibility: Profiles::Visibility.code_for(@user)
+    )
   end
 
   def age_visibility_json

@@ -32,7 +32,7 @@ module Onboarding
 
       ActiveRecord::Base.transaction do
         @user.create_profile!(profile.attributes.merge(date_of_birth: date_of_birth))
-        @user.create_age_visibility_preference! if @user.age_visibility_preference.blank?
+        preference = @user.age_visibility_preference || @user.create_age_visibility_preference!
 
         OrganizationMembership.create!(
           organization: organization,
@@ -54,6 +54,7 @@ module Onboarding
         # Minors and unknown-age users get organization-private participation
         # only: no Personal workspace and no personal trial credit.
         if @user.adult?
+          preference.confirm_public_identity!
           personal = Workspaces::EnsurePersonal.call(user: @user)
           Credits::GrantPersonalTrial.call(user: @user)
           @user.update!(active_workspace_id: personal.id) if personal
