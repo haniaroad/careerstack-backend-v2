@@ -83,7 +83,7 @@ Generate does **not** consume project credits; confirm still does.
 
 ## Identity API
 
-Identity, onboarding, and workspace endpoints live under `/api/v1/*`. Every path except `/health`, `/ready`, `/up`, and `/api/v1/stripe/webhooks` requires `Authorization: Bearer <Firebase ID token>`; the first verified token for an email creates a CareerStack account in `pending_onboarding`. The Stripe webhook is public for Firebase auth but still requires a valid `Stripe-Signature`. See [`openapi/openapi.yaml`](openapi/openapi.yaml) for the full contract.
+Identity, onboarding, and workspace endpoints live under `/api/v1/*`. Every path except `/health`, `/ready`, `/up`, `/api/v1/stripe/webhooks`, and `/api/v1/public/*` requires `Authorization: Bearer <Firebase ID token>`; the first verified token for an email creates a CareerStack account in `pending_onboarding`. The Stripe webhook is public for Firebase auth but still requires a valid `Stripe-Signature`. Public project and profile GETs enforce server-side eligibility and return **404** (never 403) when ineligible. See [`openapi/openapi.yaml`](openapi/openapi.yaml) for the full contract.
 
 `FIREBASE_AUTH_STUB` defaults to on in test, and in development until `FIREBASE_PROJECT_ID` is set. It is ignored in production, where real Firebase ID tokens are always verified against Google's JWKS. With the stub enabled:
 
@@ -128,7 +128,19 @@ Creator team task review and Inbox Approvals are live. Project completion, grace
 
 ## Profiles
 
-Authenticated adults have a system-generated kebab-case profile slug (user-immutable). Own Profile is at `/profile` (Details · Activity · Skills & artifacts · Settings). Other eligible adults are readable at `GET /api/v1/profiles/:slug` and `/profile/:slug` when visibility is `public_adult`; restricted identities return 404 (not 403). Contribution stats and equal-weight activity events are derived, not editable. Age-up confirm/reverse uses `POST /api/v1/profiles/me/visibility` (and the existing `PATCH /api/v1/age_visibility`). Unauthenticated public surfaces come next in the OpenSpec spine.
+Authenticated adults have a system-generated kebab-case profile slug (user-immutable). Own Profile is at `/profile` (Details · Activity · Skills & artifacts · Settings). Other eligible adults are readable at `GET /api/v1/profiles/:slug` and `/profile/:slug` when visibility is `public_adult`; restricted identities return 404 (not 403). Contribution stats and equal-weight activity events are derived, not editable. Age-up confirm/reverse uses `POST /api/v1/profiles/me/visibility` (and the existing `PATCH /api/v1/age_visibility`).
+
+## Public surfaces
+
+Unauthenticated visitors can open eligible public projects and public adult profiles outside the application shell:
+
+- `GET /api/v1/public/projects/:slug` — redacted project DTO (no evidence, roster, submissions, credits, or messages)
+- `GET /api/v1/public/profiles/:slug` — public adult profile DTO (same visibility rules as authenticated by-slug)
+- Frontend routes: `/projects/:slug` and `/profile/:slug` (shell-less for anonymous; onboarded users enter the shell)
+
+Projects have a stable kebab `slug` and `visibility` (`public` | `private`). Personal defaults to public; organization defaults to private. Anonymous `/api/v1/public/*` traffic is rate-limited via Rack::Attack.
+
+**Staging note:** Cloud Run may still require an authenticated invoker at the edge (org policy). Rails public allowlist is verified locally; unlock browser anonymous → API calls via the public invoker checklist in [`infra/README.md`](infra/README.md).
 
 ## Tests and quality
 

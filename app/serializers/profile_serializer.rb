@@ -19,7 +19,7 @@ class ProfileSerializer
     new(user: user, viewer: user, public_view: false).as_json
   end
 
-  def self.public_for(user, viewer:)
+  def self.public_for(user, viewer: nil)
     new(user: user, viewer: viewer, public_view: true).as_json
   end
 
@@ -40,11 +40,7 @@ class ProfileSerializer
       user_id: @user.id,
       visibility: Profiles::Visibility.code_for(@user),
       public_identity_visible: @user.public_identity_visible?,
-      age_visibility: {
-        visibility_review_required: @user.age_visibility_preference&.visibility_review_required || false,
-        public_identity_confirmed: @user.age_visibility_preference&.public_identity_confirmed || false,
-        confirmed_at: @user.age_visibility_preference&.confirmed_at
-      },
+      age_visibility: age_visibility_json,
       details: details,
       stats: Profiles::Stats.call(user: @user),
       evidence: Profiles::Evidence.call(user: @user),
@@ -54,6 +50,17 @@ class ProfileSerializer
   end
 
   private
+
+  def age_visibility_json
+    # Anonymous public readers only need the visibility code, not preference internals.
+    return nil if @viewer.nil?
+
+    {
+      visibility_review_required: @user.age_visibility_preference&.visibility_review_required || false,
+      public_identity_confirmed: @user.age_visibility_preference&.public_identity_confirmed || false,
+      confirmed_at: @user.age_visibility_preference&.confirmed_at
+    }
+  end
 
   def links_json
     return [] if @public_view && !@user.public_identity_visible?

@@ -46,6 +46,13 @@ module Projects
       if @attrs.key?(:capacity) && @attrs[:capacity] != :unchanged
         updates[:capacity] = @attrs[:capacity].present? ? @attrs[:capacity].to_i : nil
       end
+      if @attrs.key?(:visibility) && @attrs[:visibility] != :unchanged
+        visibility = @attrs[:visibility].to_s
+        unless Project::VISIBILITIES.include?(visibility)
+          raise DomainError.new("Invalid project visibility", code: "validation_error")
+        end
+        updates[:visibility] = visibility
+      end
 
       mode = updates.fetch(:mode, @project.mode)
       if mode == Project::MODE_SOLO

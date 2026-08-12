@@ -3,7 +3,7 @@
 module Projects
   class CreateDraft
     def self.call(user:, workspace:, title:, summary: nil, skills: [], mode: Project::MODE_SOLO,
-                  joining_mode: nil, capacity: nil, roles_needed: [])
+                  joining_mode: nil, capacity: nil, roles_needed: [], visibility: nil)
       new(
         user: user,
         workspace: workspace,
@@ -13,11 +13,12 @@ module Projects
         mode: mode,
         joining_mode: joining_mode,
         capacity: capacity,
-        roles_needed: roles_needed
+        roles_needed: roles_needed,
+        visibility: visibility
       ).call
     end
 
-    def initialize(user:, workspace:, title:, summary:, skills:, mode:, joining_mode:, capacity:, roles_needed:)
+    def initialize(user:, workspace:, title:, summary:, skills:, mode:, joining_mode:, capacity:, roles_needed:, visibility:)
       @user = user
       @workspace = workspace
       @title = title
@@ -27,11 +28,13 @@ module Projects
       @joining_mode = joining_mode.presence
       @capacity = capacity
       @roles_needed = Array(roles_needed).map { |s| s.to_s.strip }.reject(&:blank?).uniq
+      @visibility = visibility
     end
 
     def call
       authorize!
       validate_mode!
+      validate_visibility!
 
       Project.create!(
         workspace: @workspace,
@@ -43,6 +46,7 @@ module Projects
         joining_mode: @mode == Project::MODE_TEAM ? @joining_mode : nil,
         capacity: @mode == Project::MODE_TEAM ? @capacity.to_i : nil,
         roles_needed: @mode == Project::MODE_TEAM ? @roles_needed : [],
+        visibility: resolved_visibility,
         status: Project::STATUS_DRAFT
       )
     end
@@ -78,6 +82,20 @@ module Projects
       if @roles_needed.empty?
         raise DomainError.new("At least one role is required for team projects", code: "validation_error")
       end
+    end
+
+    def validate_visibility!
+      return if @visibility.nil?
+
+      unless Project::VISIBILITIES.include?(@visibility.to_s)
+        raise DomainError.new("Invalid project visibility", code: "validation_error")
+      end
+    end
+
+    def resolved_visibility
+      return @visibility.to_s if @visibility.present?
+
+      @workspace.organization? ? Project::VISIBILITY_PRIVATE : Project::VISIBILITY_PUBLIC
     end
   end
 end
