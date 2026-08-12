@@ -126,6 +126,10 @@ Team projects support `application`, `instant`, and `invite_only` joining modes 
 
 Creator team task review and Inbox Approvals are live. Project completion, grace, and expiration close the timebox after the preferred end date.
 
+## Profiles
+
+Authenticated adults have a system-generated kebab-case profile slug (user-immutable). Own Profile is at `/profile` (Details · Activity · Skills & artifacts · Settings). Other eligible adults are readable at `GET /api/v1/profiles/:slug` and `/profile/:slug` when visibility is `public_adult`; restricted identities return 404 (not 403). Contribution stats and equal-weight activity events are derived, not editable. Age-up confirm/reverse uses `POST /api/v1/profiles/me/visibility` (and the existing `PATCH /api/v1/age_visibility`). Unauthenticated public surfaces come next in the OpenSpec spine.
+
 ## Tests and quality
 
 ```bash

@@ -380,6 +380,110 @@ paths:
                 $ref: "#/components/schemas/ErrorEnvelope"
         "422":
           $ref: "#/components/responses/UnprocessableEntity"
+  /api/v1/profiles/me:
+    get:
+      operationId: getOwnProfile
+      summary: Own profile with stats, activity, skills, and visibility
+      tags: [Profiles]
+      responses:
+        "200":
+          description: Own profile payload
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [profile]
+                properties:
+                  profile:
+                    $ref: "#/components/schemas/ProfileDetail"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+    patch:
+      operationId: updateOwnProfile
+      summary: Update allowed personal profile fields
+      tags: [Profiles]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfileUpdateRequest"
+      responses:
+        "200":
+          description: Updated own profile
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [profile]
+                properties:
+                  profile:
+                    $ref: "#/components/schemas/ProfileDetail"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+  /api/v1/profiles/me/visibility:
+    post:
+      operationId: updateOwnProfileVisibility
+      summary: Confirm or reverse public identity
+      tags: [Profiles]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision]
+              properties:
+                decision:
+                  type: string
+                  enum: [confirm, reverse]
+      responses:
+        "200":
+          description: Updated profile and session
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [profile, session]
+                properties:
+                  profile:
+                    $ref: "#/components/schemas/ProfileDetail"
+                  session:
+                    $ref: "#/components/schemas/Session"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+  /api/v1/profiles/{slug}:
+    get:
+      operationId: getProfileBySlug
+      summary: Authenticated profile by slug when visibility allows
+      tags: [Profiles]
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Public adult profile or own profile
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [profile]
+                properties:
+                  profile:
+                    $ref: "#/components/schemas/ProfileDetail"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /api/v1/credits:
     get:
       operationId: getCredits
@@ -1153,6 +1257,96 @@ components:
           maxItems: 10
           items:
             type: string
+        slug:
+          type: string
+          description: System-generated kebab-case slug; user-immutable
+        visibility:
+          type: string
+          enum: [public_adult, restricted]
+    ProfileDetail:
+      type: object
+      required: [user_id, visibility, details, stats, evidence, projects, links]
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        visibility:
+          type: string
+          enum: [public_adult, restricted]
+        public_identity_visible:
+          type: boolean
+        age_visibility:
+          $ref: "#/components/schemas/AgeVisibility"
+        details:
+          $ref: "#/components/schemas/SessionProfile"
+        stats:
+          type: object
+          additionalProperties: true
+        evidence:
+          type: object
+          additionalProperties: true
+        projects:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        links:
+          type: array
+          items:
+            type: object
+            required: [provider, url]
+            properties:
+              provider:
+                type: string
+              url:
+                type: string
+    ProfileUpdateRequest:
+      type: object
+      properties:
+        display_name:
+          type: string
+        country:
+          type: string
+        state_region:
+          type: string
+        career_goal:
+          type: string
+        experience_level:
+          type: string
+          enum: [beginner, intermediate, advanced]
+        bio:
+          type: string
+          nullable: true
+        image_url:
+          type: string
+          nullable: true
+        github_url:
+          type: string
+          nullable: true
+        linkedin_url:
+          type: string
+          nullable: true
+        portfolio_url:
+          type: string
+          nullable: true
+        interests:
+          type: array
+          items:
+            type: string
+        current_role_term_id:
+          type: string
+          format: uuid
+          nullable: true
+        current_role_other:
+          type: string
+          nullable: true
+        target_role_term_id:
+          type: string
+          format: uuid
+          nullable: true
+        target_role_other:
+          type: string
+          nullable: true
     AgeVisibility:
       type: object
       required: [visibility_review_required, public_identity_confirmed]

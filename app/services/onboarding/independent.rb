@@ -23,7 +23,9 @@ module Onboarding
 
       ActiveRecord::Base.transaction do
         @user.create_profile!(profile.attributes)
-        @user.create_age_visibility_preference! if @user.age_visibility_preference.blank?
+        preference = @user.age_visibility_preference || @user.create_age_visibility_preference!
+        preference.confirm_public_identity!
+
         @user.update!(
           status: "active",
           onboarding_path: "independent",

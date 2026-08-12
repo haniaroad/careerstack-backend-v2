@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_08_11_180000) do
+ActiveRecord::Schema[8.0].define(version: 2026_08_11_200000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -140,6 +140,24 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_11_180000) do
     t.index ["task_submission_id"], name: "index_ai_reviews_on_task_submission_id"
     t.index ["user_id", "created_at"], name: "index_ai_reviews_on_user_id_and_created_at"
     t.index ["user_id"], name: "index_ai_reviews_on_user_id"
+  end
+
+  create_table "contribution_events", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "user_id", null: false
+    t.string "kind", null: false
+    t.datetime "occurred_at", null: false
+    t.string "subject_type", null: false
+    t.uuid "subject_id", null: false
+    t.string "workspace_kind", null: false
+    t.boolean "private_org", default: false, null: false
+    t.string "idempotency_key", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["idempotency_key"], name: "index_contribution_events_on_idempotency_key", unique: true
+    t.index ["kind"], name: "index_contribution_events_on_kind"
+    t.index ["subject_type", "subject_id"], name: "index_contribution_events_on_subject_type_and_subject_id"
+    t.index ["user_id", "occurred_at"], name: "index_contribution_events_on_user_id_and_occurred_at"
+    t.index ["user_id"], name: "index_contribution_events_on_user_id"
   end
 
   create_table "credit_ledger_entries", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -323,7 +341,9 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_11_180000) do
     t.date "date_of_birth"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "slug", null: false
     t.index ["current_role_term_id"], name: "index_profiles_on_current_role_term_id"
+    t.index ["slug"], name: "index_profiles_on_slug", unique: true
     t.index ["target_role_term_id"], name: "index_profiles_on_target_role_term_id"
     t.index ["user_id"], name: "index_profiles_on_user_id", unique: true
   end
@@ -565,6 +585,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_11_180000) do
   add_foreign_key "ai_reviews", "task_submissions"
   add_foreign_key "ai_reviews", "tasks"
   add_foreign_key "ai_reviews", "users"
+  add_foreign_key "contribution_events", "users"
   add_foreign_key "credit_ledger_entries", "credit_lots"
   add_foreign_key "credit_ledger_entries", "users", column: "actor_user_id"
   add_foreign_key "credit_purchases", "credit_lots"

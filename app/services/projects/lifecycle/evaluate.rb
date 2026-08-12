@@ -71,6 +71,15 @@ module Projects
         )
 
         expire_pending_recruitment!
+        @project.memberships.active.find_each do |membership|
+          Profiles::RecordContribution.call(
+            user: membership.user,
+            kind: ContributionEvent::KIND_PROJECT_COMPLETED,
+            subject: @project,
+            occurred_at: @project.completed_at,
+            project: @project
+          )
+        end
         notify_audience!(
           key: "lifecycle:completed:#{@project.id}",
           title: "Project completed",

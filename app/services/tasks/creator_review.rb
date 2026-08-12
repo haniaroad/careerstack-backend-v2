@@ -39,6 +39,12 @@ module Tasks
       end
 
       if @decision == Task::DECISION_APPROVED
+        Profiles::RecordContribution.call(
+          user: @task.assignee,
+          kind: ContributionEvent::KIND_TASK_APPROVED,
+          subject: @task,
+          project: @task.project
+        )
         Projects::Lifecycle::Evaluate.call(project: @task.project.reload)
       end
 

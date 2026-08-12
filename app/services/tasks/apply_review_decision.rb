@@ -25,6 +25,12 @@ module Tasks
       end
 
       if @review.decision == AiReview::DECISION_APPROVED
+        Profiles::RecordContribution.call(
+          user: @task.assignee,
+          kind: ContributionEvent::KIND_TASK_APPROVED,
+          subject: @task,
+          project: @task.project
+        )
         Projects::Lifecycle::Evaluate.call(project: @task.project.reload)
       end
 

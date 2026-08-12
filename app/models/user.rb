@@ -13,6 +13,7 @@ class User < ApplicationRecord
   has_one :age_visibility_preference, dependent: :destroy
   has_many :organization_memberships, dependent: :destroy
   has_many :organizations, through: :organization_memberships
+  has_many :contribution_events, dependent: :destroy
   has_many :credit_ledger_entries, as: :owner, dependent: :restrict_with_exception
   has_many :credit_lots, as: :owner, dependent: :restrict_with_exception
   has_one :stripe_customer, dependent: :destroy

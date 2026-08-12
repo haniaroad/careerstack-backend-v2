@@ -73,6 +73,23 @@ module Tasks
         )
       end
 
+      Profiles::RecordContribution.call(
+        user: @user,
+        kind: ContributionEvent::KIND_TASK_SUBMITTED,
+        subject: submission,
+        occurred_at: submission.submitted_at,
+        project: @task.project
+      )
+      if submission.files.attached? || submission.links.any?
+        Profiles::RecordContribution.call(
+          user: @user,
+          kind: ContributionEvent::KIND_ARTIFACT_UPLOADED,
+          subject: submission,
+          occurred_at: submission.submitted_at,
+          project: @task.project
+        )
+      end
+
       { submission: submission.reload, review: review, task: @task.reload }
     end
 
