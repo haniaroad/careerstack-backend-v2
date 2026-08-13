@@ -27,43 +27,58 @@ module Api
           mode: params[:mode] || Project::MODE_SOLO,
           joining_mode: params[:joining_mode],
           capacity: params[:capacity],
-          roles_needed: params[:roles_needed]
+          roles_needed: params[:roles_needed],
+          visibility: params[:visibility]
         )
         render json: { project: ProjectSerializer.call(project, viewer: current_user) }, status: :created
       end
 
       def update
         project = find_creator_project!
-        if project.active? && params.key?(:ends_on)
-          updated = Projects::UpdateEndsOn.call(
+
+        if project.draft?
+          updated = Projects::UpdateDraft.call(
             project: project,
             user: current_user,
-            ends_on: params[:ends_on]
+            title: params[:title],
+            summary: params.key?(:summary) ? params[:summary] : :unchanged,
+            skills: params.key?(:skills) ? params[:skills] : :unchanged,
+            objective: params.key?(:objective) ? params[:objective] : :unchanged,
+            project_type: params.key?(:project_type) ? params[:project_type] : :unchanged,
+            expected_duration: params.key?(:expected_duration) ? params[:expected_duration] : :unchanged,
+            ends_on: params.key?(:ends_on) ? params[:ends_on] : :unchanged,
+            definition_of_done: params.key?(:definition_of_done) ? params[:definition_of_done] : :unchanged,
+            roles_needed: params.key?(:roles_needed) ? params[:roles_needed] : :unchanged,
+            proposed_tasks: params.key?(:proposed_tasks) ? params[:proposed_tasks] : :unchanged,
+            submission_expectations: params.key?(:submission_expectations) ? params[:submission_expectations] : :unchanged,
+            mode: params.key?(:mode) ? params[:mode] : :unchanged,
+            joining_mode: params.key?(:joining_mode) ? params[:joining_mode] : :unchanged,
+            capacity: params.key?(:capacity) ? params[:capacity] : :unchanged,
+            visibility: params.key?(:visibility) ? params[:visibility] : :unchanged
           )
           return render json: { project: ProjectSerializer.call(updated, viewer: current_user) }
         end
 
-        raise DomainError.new("Only draft projects can be modified this way", code: "validation_error") unless project.draft?
+        if params.key?(:visibility)
+          Projects::UpdateVisibility.call(
+            project: project,
+            user: current_user,
+            visibility: params[:visibility]
+          )
+          project.reload
+        end
 
-        updated = Projects::UpdateDraft.call(
-          project: project,
-          user: current_user,
-          title: params[:title],
-          summary: params.key?(:summary) ? params[:summary] : :unchanged,
-          skills: params.key?(:skills) ? params[:skills] : :unchanged,
-          objective: params.key?(:objective) ? params[:objective] : :unchanged,
-          project_type: params.key?(:project_type) ? params[:project_type] : :unchanged,
-          expected_duration: params.key?(:expected_duration) ? params[:expected_duration] : :unchanged,
-          ends_on: params.key?(:ends_on) ? params[:ends_on] : :unchanged,
-          definition_of_done: params.key?(:definition_of_done) ? params[:definition_of_done] : :unchanged,
-          roles_needed: params.key?(:roles_needed) ? params[:roles_needed] : :unchanged,
-          proposed_tasks: params.key?(:proposed_tasks) ? params[:proposed_tasks] : :unchanged,
-          submission_expectations: params.key?(:submission_expectations) ? params[:submission_expectations] : :unchanged,
-          mode: params.key?(:mode) ? params[:mode] : :unchanged,
-          joining_mode: params.key?(:joining_mode) ? params[:joining_mode] : :unchanged,
-          capacity: params.key?(:capacity) ? params[:capacity] : :unchanged
-        )
-        render json: { project: ProjectSerializer.call(updated, viewer: current_user) }
+        if project.active? && params.key?(:ends_on)
+          project = Projects::UpdateEndsOn.call(
+            project: project,
+            user: current_user,
+            ends_on: params[:ends_on]
+          )
+        elsif !params.key?(:visibility)
+          raise DomainError.new("Only draft projects can be modified this way", code: "validation_error")
+        end
+
+        render json: { project: ProjectSerializer.call(project.reload, viewer: current_user) }
       end
 
       def destroy

@@ -5,10 +5,12 @@ info:
   description: |
     Platform foundation plus identity, onboarding, and workspace contracts.
 
-    Authentication: every endpoint except `/health`, `/ready`, `/up`, and
-    `/api/v1/stripe/webhooks` requires a verified Firebase ID token in
-    `Authorization: Bearer <token>`. The Stripe webhook is signature-verified
-    instead. The first verified token for an email bootstraps a CareerStack
+    Authentication: every endpoint except `/health`, `/ready`, `/up`,
+    `/api/v1/stripe/webhooks`, and `/api/v1/public/*` requires a verified
+    Firebase ID token in `Authorization: Bearer <token>`. The Stripe webhook
+    is signature-verified instead. Public project and profile GETs enforce
+    server-side eligibility and return 404 (never 403) when ineligible.
+    The first verified token for an email bootstraps a CareerStack
     account in `pending_onboarding`. Locally and in CI, `FIREBASE_AUTH_STUB=true`
     accepts `Bearer test:<firebase_uid>:<email>` instead.
 
@@ -484,6 +486,64 @@ paths:
           $ref: "#/components/responses/Unauthenticated"
         "404":
           $ref: "#/components/responses/NotFound"
+  /api/v1/public/projects/{slug}:
+    get:
+      operationId: getPublicProjectBySlug
+      summary: Unauthenticated public project by slug when eligible
+      tags: [Public]
+      security: []
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Redacted public project presentation
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [project]
+                properties:
+                  project:
+                    $ref: "#/components/schemas/PublicProject"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          description: Rate limited
+  /api/v1/public/profiles/{slug}:
+    get:
+      operationId: getPublicProfileBySlug
+      summary: Unauthenticated public adult profile by slug when eligible
+      tags: [Public]
+      security: []
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Public adult profile presentation
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [profile, canonical_path, indexable]
+                properties:
+                  profile:
+                    $ref: "#/components/schemas/ProfileDetail"
+                  canonical_path:
+                    type: string
+                  indexable:
+                    type: boolean
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          description: Rate limited
   /api/v1/credits:
     get:
       operationId: getCredits
@@ -1439,11 +1499,13 @@ components:
           enum: [user, organization]
     Project:
       type: object
-      required: [id, title, mode, status, source, workspace_id, creator_id, skills]
+      required: [id, slug, title, mode, status, visibility, source, workspace_id, creator_id, skills]
       properties:
         id:
           type: string
           format: uuid
+        slug:
+          type: string
         title:
           type: string
         summary:
@@ -1481,6 +1543,9 @@ components:
         phase:
           type: string
           enum: [normal, ending_soon, grace_period, read_only]
+        visibility:
+          type: string
+          enum: [public, private]
         source:
           type: string
           enum: [manual, ai]
@@ -1547,6 +1612,85 @@ components:
         updated_at:
           type: string
           format: date-time
+    PublicProject:
+      type: object
+      required: [id, slug, title, mode, status, skills, creator, canonical_path, indexable, tasks]
+      properties:
+        id:
+          type: string
+          format: uuid
+        slug:
+          type: string
+        title:
+          type: string
+        summary:
+          type: string
+          nullable: true
+        definition_of_done:
+          type: string
+          nullable: true
+        skills:
+          type: array
+          items:
+            type: string
+        roles_needed:
+          type: array
+          items:
+            type: string
+        project_type:
+          type: string
+          nullable: true
+        mode:
+          type: string
+          enum: [solo, team]
+        status:
+          type: string
+          enum: [draft, active, completed, expired, cancelled, archived]
+        phase:
+          type: string
+          enum: [normal, ending_soon, grace_period, read_only]
+        joining_mode:
+          type: string
+          enum: [application, instant, invite_only]
+          nullable: true
+        capacity:
+          type: integer
+          nullable: true
+        seats_remaining:
+          type: integer
+          nullable: true
+        recruitment_state:
+          type: string
+          enum: [open, full, closed]
+          nullable: true
+        ends_on:
+          type: string
+          format: date
+          nullable: true
+        tasks:
+          type: array
+          items:
+            type: object
+            required: [title]
+            properties:
+              title:
+                type: string
+              acceptance_criteria:
+                type: string
+                nullable: true
+        creator:
+          type: object
+          required: [display_name]
+          properties:
+            display_name:
+              type: string
+            profile_slug:
+              type: string
+              nullable: true
+        canonical_path:
+          type: string
+        indexable:
+          type: boolean
     AiGeneration:
       type: object
       required: [id, use_case, status, retryable]

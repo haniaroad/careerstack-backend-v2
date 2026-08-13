@@ -24,6 +24,8 @@ Rails.application.routes.draw do
       patch "age_visibility", to: "age_visibilities#update"
       get "credits", to: "credits#show"
       get "credits/history", to: "credits#history"
+      get "public/projects/:slug", to: "public/projects#show"
+      get "public/profiles/:slug", to: "public/profiles#show"
       get "projects", to: "projects#index"
       post "projects", to: "projects#create"
       get "projects/:id", to: "projects#show"

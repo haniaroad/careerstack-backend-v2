@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_08_11_200000) do
+ActiveRecord::Schema[8.0].define(version: 2026_08_12_190000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -136,7 +136,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_11_200000) do
     t.index ["status"], name: "index_ai_reviews_on_status"
     t.index ["task_id", "status"], name: "index_ai_reviews_on_task_id_and_status"
     t.index ["task_id"], name: "index_ai_reviews_on_task_id"
-    t.index ["task_id"], name: "index_ai_reviews_one_active_per_task", unique: true, where: "((status)::text = ANY ((ARRAY['pending'::character varying, 'running'::character varying])::text[]))"
+    t.index ["task_id"], name: "index_ai_reviews_one_active_per_task", unique: true, where: "((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('running'::character varying)::text]))"
     t.index ["task_submission_id"], name: "index_ai_reviews_on_task_submission_id"
     t.index ["user_id", "created_at"], name: "index_ai_reviews_on_user_id_and_created_at"
     t.index ["user_id"], name: "index_ai_reviews_on_user_id"
@@ -451,8 +451,11 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_11_200000) do
     t.integer "capacity"
     t.datetime "completed_at"
     t.datetime "expired_at"
+    t.string "slug", null: false
+    t.string "visibility", null: false
     t.index ["creator_id", "status"], name: "index_projects_on_creator_id_and_status"
     t.index ["creator_id"], name: "index_projects_on_creator_id"
+    t.index ["slug"], name: "index_projects_on_slug", unique: true
     t.index ["workspace_id", "status"], name: "index_projects_on_workspace_id_and_status"
     t.index ["workspace_id"], name: "index_projects_on_workspace_id"
   end

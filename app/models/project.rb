@@ -39,6 +39,10 @@ class Project < ApplicationRecord
   SOURCE_AI = "ai"
   SOURCES = [ SOURCE_MANUAL, SOURCE_AI ].freeze
 
+  VISIBILITY_PUBLIC = "public"
+  VISIBILITY_PRIVATE = "private"
+  VISIBILITIES = [ VISIBILITY_PUBLIC, VISIBILITY_PRIVATE ].freeze
+
   GRACE_DAYS = 7
   ENDING_SOON_DAYS = 7
 
@@ -56,16 +60,30 @@ class Project < ApplicationRecord
   validates :mode, inclusion: { in: MODES }
   validates :status, inclusion: { in: STATUSES }
   validates :source, inclusion: { in: SOURCES }
+  validates :visibility, inclusion: { in: VISIBILITIES }
+  validates :slug, presence: true, uniqueness: true
   validates :joining_mode, inclusion: { in: JOINING_MODES }, allow_nil: true
   validates :capacity, numericality: { only_integer: true, greater_than_or_equal_to: 1, less_than_or_equal_to: 5 }, allow_nil: true
   validate :skills_are_strings
   validate :roles_needed_are_strings
   validate :proposed_tasks_are_array
   validate :team_fields_consistency
+  validate :slug_immutable, on: :update
+
+  before_validation :assign_slug_if_blank, on: :create
+  before_validation :assign_default_visibility, on: :create
 
   scope :in_workspace, ->(workspace) { where(workspace_id: workspace.id) }
   scope :drafts, -> { where(status: STATUS_DRAFT) }
   scope :active, -> { where(status: STATUS_ACTIVE) }
+
+  def public_visibility?
+    visibility == VISIBILITY_PUBLIC
+  end
+
+  def private_visibility?
+    visibility == VISIBILITY_PRIVATE
+  end
 
   def draft?
     status == STATUS_DRAFT
@@ -191,6 +209,25 @@ class Project < ApplicationRecord
   end
 
   private
+
+  def assign_slug_if_blank
+    return if slug.present?
+
+    self.slug = Projects::SlugGenerator.call(title: title, exclude_project_id: id)
+  end
+
+  def assign_default_visibility
+    return if visibility.present?
+    return if workspace.nil?
+
+    self.visibility = workspace.organization? ? VISIBILITY_PRIVATE : VISIBILITY_PUBLIC
+  end
+
+  def slug_immutable
+    return unless slug_changed? && slug_was.present?
+
+    errors.add(:slug, "cannot be changed")
+  end
 
   def utc_today
     Time.find_zone!("UTC").today

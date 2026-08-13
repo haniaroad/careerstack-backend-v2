@@ -18,6 +18,9 @@ gem "jwt"
 # Personal credit pack Checkout + webhooks
 gem "stripe", "~> 13.0"
 
+# Anonymous public API rate limiting
+gem "rack-attack"
+
 group :development, :test do
   gem "debug", platforms: %i[ mri windows ], require: "debug/prelude"
   gem "brakeman", require: false

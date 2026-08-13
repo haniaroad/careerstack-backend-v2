@@ -22,6 +22,7 @@ module CareerstackBackendV2
 
     config.middleware.insert_before 0, CorrelationIdMiddleware
     config.middleware.use RequestLoggingMiddleware
+    config.middleware.use Rack::Attack
     config.active_job.queue_adapter = :solid_queue
     config.solid_queue.connects_to = { database: { writing: :queue } }
     config.log_tags = [ :request_id ]

@@ -7,6 +7,7 @@ module Authenticatable
   extend ActiveSupport::Concern
 
   PUBLIC_PATHS = %w[/health /ready /up /api/v1/stripe/webhooks].freeze
+  PUBLIC_PATH_PREFIXES = %w[/api/v1/public/].freeze
 
   included do
     before_action :require_authentication
@@ -28,7 +29,9 @@ module Authenticatable
   end
 
   def public_path?
-    PUBLIC_PATHS.include?(request.path)
+    return true if PUBLIC_PATHS.include?(request.path)
+
+    PUBLIC_PATH_PREFIXES.any? { |prefix| request.path.start_with?(prefix) }
   end
 
   def deny_suspended_account

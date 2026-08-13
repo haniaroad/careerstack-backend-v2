@@ -14,12 +14,14 @@ class ProjectSerializer
   def as_json
     payload = {
       id: @project.id,
+      slug: @project.slug,
       title: @project.title,
       summary: @project.summary,
       skills: @project.skills,
       mode: @project.mode,
       status: @project.status,
       phase: @project.phase,
+      visibility: @project.visibility,
       source: @project.source,
       joining_mode: @project.joining_mode,
       capacity: @project.capacity,

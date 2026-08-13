@@ -80,7 +80,7 @@ GEM
     bigdecimal (4.1.2)
     bootsnap (1.24.6)
       msgpack (~> 1.2)
-    brakeman (8.0.5)
+    brakeman (8.0.6)
       racc
     builder (3.3.0)
     bundler-audit (0.9.3)
@@ -199,6 +199,8 @@ GEM
     raabro (1.5.0)
     racc (1.8.1)
     rack (3.2.6)
+    rack-attack (6.8.0)
+      rack (>= 1.0, < 4)
     rack-cors (3.0.0)
       logger
       rack (>= 3.0.14)
@@ -359,6 +361,7 @@ DEPENDENCIES
   pdf-reader (~> 2.12)
   pg (~> 1.1)
   puma (>= 5.0)
+  rack-attack
   rack-cors
   rack-test
   rails (~> 8.0.2)
