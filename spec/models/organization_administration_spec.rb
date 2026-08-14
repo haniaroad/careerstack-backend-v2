@@ -245,4 +245,3 @@ RSpec.describe OrganizationMembership do
     expect(participant_membership).not_to be_can_export_reports
   end
 end
-
