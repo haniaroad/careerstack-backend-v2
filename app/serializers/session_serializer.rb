@@ -31,6 +31,7 @@ class SessionSerializer
       active_workspace_id: active_workspace&.id,
       active_workspace: WorkspaceSerializer.call(active_workspace),
       can_access_org_admin: @user.can_access_org_admin_for?(active_workspace),
+      org_admin_capabilities: org_admin_capabilities(active_workspace),
       age_visibility: age_visibility_json,
       program_filter: program_filter_json(active_workspace),
       credits: credits_json(active_workspace)
@@ -93,7 +94,28 @@ class SessionSerializer
     {
       mode: program_id.present? ? "program" : "all",
       program_id: program_id,
-      available_programs: workspace.organization.programs.order(:name).map { |p| { id: p.id, name: p.name } }
+      available_programs: available_programs(workspace.organization).map { |p| { id: p.id, name: p.name, status: p.status } }
+    }
+  end
+
+  def available_programs(organization)
+    membership = @user.membership_for(organization)
+    scope = organization.programs.order(:name)
+    return scope if membership&.staff?
+
+    scope.active
+  end
+
+  def org_admin_capabilities(workspace)
+    membership = workspace&.organization && @user.membership_for(workspace.organization)
+    return nil unless membership&.staff?
+
+    {
+      can_archive_programs: membership.can_archive_programs?,
+      can_delete_empty_drafts: membership.can_delete_empty_drafts?,
+      can_remove_members: membership.can_remove_members?,
+      can_view_credit_history: membership.can_view_credit_history?,
+      can_submit_upgrade_request: membership.administrator?
     }
   end
 end

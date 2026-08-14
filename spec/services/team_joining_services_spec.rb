@@ -33,6 +33,7 @@ RSpec.describe "Team joining services" do
     organization = create_organization(name: "Team Org #{SecureRandom.hex(3)}")
     create_membership(organization: organization, user: creator, role: OrganizationMembership::ADMIN)
     Credits::GrantOrganizationTrial.call(user: creator, organization: organization)
+    program = create_program(organization: organization)
 
     participants = participant_emails.map do |email|
       user = create_onboarded_adult(email: email)
@@ -48,7 +49,8 @@ RSpec.describe "Team joining services" do
       mode: Project::MODE_TEAM,
       joining_mode: joining_mode,
       capacity: capacity,
-      roles_needed: roles_needed
+      roles_needed: roles_needed,
+      program_id: program.id
     )
     if proposed_tasks
       project.update!(proposed_tasks: proposed_tasks)
@@ -413,12 +415,14 @@ RSpec.describe "Team joining services" do
       organization = create_organization(name: "Convert Org")
       create_membership(organization: organization, user: creator, role: OrganizationMembership::ADMIN)
       Credits::GrantOrganizationTrial.call(user: creator, organization: organization)
+      program = create_program(organization: organization)
 
       project = Projects::CreateDraft.call(
         user: creator,
         workspace: organization.workspace,
         title: "Solo first",
-        mode: Project::MODE_SOLO
+        mode: Project::MODE_SOLO,
+        program_id: program.id
       )
     project.update!(
       ends_on: Date.current + 30,

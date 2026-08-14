@@ -28,7 +28,8 @@ module Api
           joining_mode: params[:joining_mode],
           capacity: params[:capacity],
           roles_needed: params[:roles_needed],
-          visibility: params[:visibility]
+          visibility: params[:visibility],
+          program_id: params[:program_id]
         )
         render json: { project: ProjectSerializer.call(project, viewer: current_user) }, status: :created
       end
@@ -54,7 +55,8 @@ module Api
             mode: params.key?(:mode) ? params[:mode] : :unchanged,
             joining_mode: params.key?(:joining_mode) ? params[:joining_mode] : :unchanged,
             capacity: params.key?(:capacity) ? params[:capacity] : :unchanged,
-            visibility: params.key?(:visibility) ? params[:visibility] : :unchanged
+            visibility: params.key?(:visibility) ? params[:visibility] : :unchanged,
+            program_id: params.key?(:program_id) ? params[:program_id] : :unchanged
           )
           return render json: { project: ProjectSerializer.call(updated, viewer: current_user) }
         end
@@ -176,7 +178,14 @@ module Api
       end
 
       def visible_projects(workspace)
-        Project.in_workspace(workspace).where(
+        scope = Project.in_workspace(workspace)
+        if workspace.organization?
+          membership = current_user.membership_for(workspace.organization)
+          if membership&.program_filter_program_id.present?
+            scope = scope.where(program_id: membership.program_filter_program_id)
+          end
+        end
+        scope.where(
           "creator_id = :uid OR id IN (SELECT project_id FROM project_memberships WHERE user_id = :uid)",
           uid: current_user.id
         )

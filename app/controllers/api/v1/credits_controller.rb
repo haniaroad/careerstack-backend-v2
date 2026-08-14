@@ -10,6 +10,12 @@ module Api
 
       def history
         owner = resolve_owner!
+        if owner.is_a?(Organization)
+          membership = current_user.membership_for(owner)
+          unless membership&.can_view_credit_history?
+            return render_forbidden("Only organization administrators can view credit history")
+          end
+        end
         render json: { entries: Credits::History.call(owner: owner) }
       end
 

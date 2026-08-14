@@ -53,6 +53,9 @@ module Projects
         end
         updates[:visibility] = visibility
       end
+      if @attrs.key?(:program_id) && @attrs[:program_id] != :unchanged
+        updates[:program] = resolve_program_update(@attrs[:program_id])
+      end
 
       mode = updates.fetch(:mode, @project.mode)
       if mode == Project::MODE_SOLO
@@ -70,6 +73,22 @@ module Projects
     def authorize!
       raise DomainError.new("Only draft projects can be edited", code: "validation_error") unless @project.draft?
       raise DomainError.new("Only the creator can edit this draft", code: "forbidden", status: :forbidden) unless @project.creator_id == @user.id
+      if @project.workspace.organization?
+        Organizations::Access.require_writable!(@project.workspace.organization)
+      end
+    end
+
+    def resolve_program_update(program_id)
+      workspace = @project.workspace
+      return nil if workspace.personal?
+
+      raise DomainError.new("program_id is required for organization projects", code: "validation_error") if program_id.blank?
+
+      program = workspace.organization.programs.find(program_id)
+      raise DomainError.new("Archived programs cannot receive new projects", code: "validation_error") if program.archived?
+      raise DomainError.new("Draft programs cannot receive new projects", code: "validation_error") if program.draft?
+
+      program
     end
   end
 end

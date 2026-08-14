@@ -48,6 +48,7 @@ class Project < ApplicationRecord
 
   belongs_to :workspace
   belongs_to :creator, class_name: "User"
+  belongs_to :program, optional: true
   has_many :memberships, class_name: "ProjectMembership", dependent: :destroy
   has_many :members, through: :memberships, source: :user
   has_many :ai_generations, dependent: :nullify
@@ -69,6 +70,7 @@ class Project < ApplicationRecord
   validate :proposed_tasks_are_array
   validate :team_fields_consistency
   validate :slug_immutable, on: :update
+  validate :organization_program_association
 
   before_validation :assign_slug_if_blank, on: :create
   before_validation :assign_default_visibility, on: :create
@@ -264,5 +266,23 @@ class Project < ApplicationRecord
       errors.add(:joining_mode, "must be blank for solo projects") if joining_mode.present?
       errors.add(:capacity, "must be blank for solo projects") if capacity.present?
     end
+  end
+
+  def organization_program_association
+    return if workspace.nil?
+
+    if workspace.personal?
+      errors.add(:program, "must be blank for personal projects") if program_id.present?
+      return
+    end
+
+    if program_id.blank?
+      errors.add(:program, "is required for organization projects")
+      return
+    end
+
+    return if program.nil?
+
+    errors.add(:program, "must belong to the same organization") if program.organization_id != workspace.organization_id
   end
 end

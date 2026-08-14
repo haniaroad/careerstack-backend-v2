@@ -19,6 +19,15 @@ module Api
         current_user.update!(active_workspace_id: workspace.id)
         render json: SessionSerializer.call(current_user.reload)
       end
+
+      def program_filter
+        Workspaces::SetProgramFilter.call(
+          user: current_user,
+          mode: params[:mode],
+          program_id: params[:program_id]
+        )
+        render json: SessionSerializer.call(current_user.reload)
+      end
     end
   end
 end

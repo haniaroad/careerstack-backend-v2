@@ -38,9 +38,15 @@ module Invitations
         )
       end
 
+      Organizations::Access.require_writable!(organization)
+      program = resolve_program(organization)
+      if program&.archived?
+        raise Error, "Archived programs cannot receive invitations"
+      end
+
       invitation, raw_token = Invitation.issue!(
         organization: organization,
-        program: resolve_program(organization),
+        program: program,
         email: @params[:email],
         created_by_user: @actor,
         role: resolve_role(membership),

@@ -36,7 +36,8 @@ module Api
         project = Ai::AcceptProjectGeneration.call(
           generation: generation,
           user: current_user,
-          workspace: workspace
+          workspace: workspace,
+          program_id: params[:program_id]
         )
         render json: {
           project: ProjectSerializer.call(project),

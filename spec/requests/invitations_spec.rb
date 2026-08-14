@@ -174,6 +174,7 @@ RSpec.describe "Invitations", type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(response.parsed_body["workspaces"].map { |workspace| workspace["kind"] }).to include("organization")
+      expect(response.parsed_body.dig("active_workspace", "organization_id")).to eq(organization.id)
 
       membership = invitee.organization_memberships.sole
       expect(membership.organization).to eq(organization)
