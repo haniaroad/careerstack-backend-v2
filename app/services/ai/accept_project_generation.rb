@@ -2,14 +2,15 @@
 
 module Ai
   class AcceptProjectGeneration
-    def self.call(generation:, user:, workspace:)
-      new(generation: generation, user: user, workspace: workspace).call
+    def self.call(generation:, user:, workspace:, program_id: nil)
+      new(generation: generation, user: user, workspace: workspace, program_id: program_id).call
     end
 
-    def initialize(generation:, user:, workspace:)
+    def initialize(generation:, user:, workspace:, program_id: nil)
       @generation = generation
       @user = user
       @workspace = workspace
+      @program_id = program_id
     end
 
     def call
@@ -28,7 +29,8 @@ module Ai
           title: validated["title"].to_s.strip,
           mode: Project::MODE_SOLO,
           status: Project::STATUS_DRAFT,
-          source: Project::SOURCE_AI
+          source: Project::SOURCE_AI,
+          program: resolve_program
         )
 
         raise DomainError.new("Only draft projects can accept generation", code: "validation_error") unless project.draft?
@@ -69,6 +71,26 @@ module Ai
       raise DomainError.new("Generation not found", code: "not_found", status: :not_found) unless @generation.owner?(@user)
       raise DomainError.new("Generation workspace mismatch", code: "forbidden", status: :forbidden) unless @generation.workspace_id == @workspace.id
       raise DomainError.new("Generation has not succeeded yet", code: "validation_error") unless @generation.succeeded?
+      if @workspace.organization?
+        Organizations::Access.require_writable!(@workspace.organization)
+      end
+    end
+
+    def resolve_program
+      return nil if @workspace.personal?
+
+      membership = @user.membership_for(@workspace.organization)
+      program_id = @program_id.presence || membership&.program_filter_program_id
+      program = if program_id.present?
+        @workspace.organization.programs.find(program_id)
+      else
+        @workspace.organization.programs.active.order(:created_at).first
+      end
+      raise DomainError.new("program_id is required for organization projects", code: "validation_error") if program.nil?
+      raise DomainError.new("Archived programs cannot receive new projects", code: "validation_error") if program.archived?
+      raise DomainError.new("Draft programs cannot receive new projects", code: "validation_error") if program.draft?
+
+      program
     end
   end
 end

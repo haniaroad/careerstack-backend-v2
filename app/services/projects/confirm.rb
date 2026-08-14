@@ -60,6 +60,12 @@ module Projects
     def authorize!
       raise DomainError.new("Only the creator can confirm this project", code: "forbidden", status: :forbidden) unless @project.creator_id == @user.id
       raise DomainError.new("Not a member of this workspace", code: "forbidden", status: :forbidden) unless @user.member_of_workspace?(@project.workspace)
+      if @project.workspace.organization?
+        Organizations::Access.require_writable!(@project.workspace.organization)
+        if @project.program&.archived? || @project.program&.draft?
+          raise DomainError.new("The associated program cannot receive confirmed projects", code: "validation_error")
+        end
+      end
     end
 
     def validate_ends_on!

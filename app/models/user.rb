@@ -55,10 +55,15 @@ class User < ApplicationRecord
     age_visibility_preference&.public_identity_confirmed? || false
   end
 
-  # Personal first when granted, then one workspace per organization membership.
+  # Personal first when granted, then one workspace per active organization membership.
   def usable_workspaces
-    memberships = organization_memberships.includes(organization: :workspace).to_a
-    organization_workspaces = memberships.filter_map { |membership| membership.organization.workspace }
+    memberships = organization_memberships.active.includes(organization: :workspace).to_a
+    organization_workspaces = memberships.filter_map do |membership|
+      organization = membership.organization
+      next if organization.workspace_disabled?
+
+      organization.workspace
+    end
 
     ([ personal_workspace ] + organization_workspaces).compact.uniq
   end
@@ -67,20 +72,22 @@ class User < ApplicationRecord
     return false if workspace.nil?
     return true if personal_workspace_id.present? && personal_workspace_id == workspace.id
     return false if workspace.organization_id.blank?
+    return false if workspace.organization&.workspace_disabled?
 
-    organization_memberships.exists?(organization_id: workspace.organization_id)
+    organization_memberships.active.exists?(organization_id: workspace.organization_id)
   end
 
   def membership_for(organization)
     return nil if organization.nil?
 
-    organization_memberships.find_by(organization_id: organization.id)
+    organization_memberships.active.find_by(organization_id: organization.id)
   end
 
   def can_access_org_admin_for?(workspace)
     return false if workspace&.organization_id.blank?
+    return false if workspace.organization&.workspace_disabled?
 
-    organization_memberships.find_by(organization_id: workspace.organization_id)&.staff? || false
+    membership_for(workspace.organization)&.staff? || false
   end
 
   # Personal when available, otherwise the first organization workspace (A-06).

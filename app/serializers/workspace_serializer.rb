@@ -8,7 +8,8 @@ class WorkspaceSerializer
       id: workspace.id,
       kind: workspace.kind,
       name: workspace.name,
-      organization_id: workspace.organization_id
+      organization_id: workspace.organization_id,
+      workspace_status: workspace.organization&.workspace_status
     }
   end
 end

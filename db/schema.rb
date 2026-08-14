@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_08_12_190000) do
+ActiveRecord::Schema[8.0].define(version: 2026_08_14_010000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -296,11 +296,32 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_12_190000) do
     t.uuid "program_filter_program_id"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "status", default: "active", null: false
+    t.datetime "removed_at"
+    t.string "removed_reason"
+    t.uuid "removed_by_user_id"
+    t.index ["organization_id", "status"], name: "index_organization_memberships_on_organization_id_and_status"
     t.index ["organization_id", "user_id"], name: "index_organization_memberships_on_organization_id_and_user_id", unique: true
     t.index ["organization_id"], name: "index_organization_memberships_on_organization_id"
     t.index ["program_filter_program_id"], name: "index_organization_memberships_on_program_filter_program_id"
     t.index ["program_id"], name: "index_organization_memberships_on_program_id"
     t.index ["user_id"], name: "index_organization_memberships_on_user_id"
+  end
+
+  create_table "organization_upgrade_requests", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "organization_id", null: false
+    t.uuid "requesting_user_id", null: false
+    t.string "expected_participants", null: false
+    t.string "expected_projects_or_cohorts", null: false
+    t.string "timeline", null: false
+    t.text "notes"
+    t.string "status", default: "open", null: false
+    t.datetime "notified_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["organization_id"], name: "index_org_upgrade_requests_one_open", unique: true, where: "((status)::text = 'open'::text)"
+    t.index ["organization_id"], name: "index_organization_upgrade_requests_on_organization_id"
+    t.index ["requesting_user_id"], name: "index_organization_upgrade_requests_on_requesting_user_id"
   end
 
   create_table "organizations", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -317,8 +338,12 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_12_190000) do
     t.string "timezone", default: "UTC", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "workspace_status", default: "active", null: false
+    t.datetime "offboarding_started_at"
+    t.date "offboarding_ends_on"
     t.index ["primary_goal_term_id"], name: "index_organizations_on_primary_goal_term_id"
     t.index ["structure_term_id"], name: "index_organizations_on_structure_term_id"
+    t.index ["workspace_status"], name: "index_organizations_on_workspace_status"
   end
 
   create_table "profiles", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -348,11 +373,24 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_12_190000) do
     t.index ["user_id"], name: "index_profiles_on_user_id", unique: true
   end
 
+  create_table "program_enrollments", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "organization_membership_id", null: false
+    t.uuid "program_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["organization_membership_id", "program_id"], name: "index_program_enrollments_on_membership_and_program", unique: true
+    t.index ["organization_membership_id"], name: "index_program_enrollments_on_organization_membership_id"
+    t.index ["program_id"], name: "index_program_enrollments_on_program_id"
+  end
+
   create_table "programs", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.uuid "organization_id", null: false
     t.string "name", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "status", default: "active", null: false
+    t.text "description"
+    t.index ["organization_id", "status"], name: "index_programs_on_organization_id_and_status"
     t.index ["organization_id"], name: "index_programs_on_organization_id"
   end
 
@@ -453,8 +491,10 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_12_190000) do
     t.datetime "expired_at"
     t.string "slug", null: false
     t.string "visibility", null: false
+    t.uuid "program_id"
     t.index ["creator_id", "status"], name: "index_projects_on_creator_id_and_status"
     t.index ["creator_id"], name: "index_projects_on_creator_id"
+    t.index ["program_id"], name: "index_projects_on_program_id"
     t.index ["slug"], name: "index_projects_on_slug", unique: true
     t.index ["workspace_id", "status"], name: "index_projects_on_workspace_id_and_status"
     t.index ["workspace_id"], name: "index_projects_on_workspace_id"
@@ -610,11 +650,16 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_12_190000) do
   add_foreign_key "organization_memberships", "programs"
   add_foreign_key "organization_memberships", "programs", column: "program_filter_program_id"
   add_foreign_key "organization_memberships", "users"
+  add_foreign_key "organization_memberships", "users", column: "removed_by_user_id"
+  add_foreign_key "organization_upgrade_requests", "organizations"
+  add_foreign_key "organization_upgrade_requests", "users", column: "requesting_user_id"
   add_foreign_key "organizations", "taxonomy_terms", column: "primary_goal_term_id"
   add_foreign_key "organizations", "taxonomy_terms", column: "structure_term_id"
   add_foreign_key "profiles", "taxonomy_terms", column: "current_role_term_id"
   add_foreign_key "profiles", "taxonomy_terms", column: "target_role_term_id"
   add_foreign_key "profiles", "users"
+  add_foreign_key "program_enrollments", "organization_memberships"
+  add_foreign_key "program_enrollments", "programs"
   add_foreign_key "programs", "organizations"
   add_foreign_key "project_applications", "projects"
   add_foreign_key "project_applications", "users", column: "applicant_id"
@@ -628,6 +673,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_12_190000) do
   add_foreign_key "project_membership_events", "users", column: "actor_user_id"
   add_foreign_key "project_memberships", "projects"
   add_foreign_key "project_memberships", "users"
+  add_foreign_key "projects", "programs"
   add_foreign_key "projects", "users", column: "creator_id"
   add_foreign_key "projects", "workspaces"
   add_foreign_key "stripe_customers", "users"

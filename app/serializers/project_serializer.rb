@@ -39,6 +39,7 @@ class ProjectSerializer
       submission_expectations: @project.submission_expectations,
       ai_generation_succeeded_at: @project.ai_generation_succeeded_at,
       workspace_id: @project.workspace_id,
+      program_id: @project.program_id,
       creator_id: @project.creator_id,
       confirmed_at: @project.confirmed_at,
       completed_at: @project.completed_at,

@@ -33,6 +33,7 @@ RSpec.describe Tasks::CreatorReview do
     create_membership(organization: organization, user: participant, role: OrganizationMembership::PARTICIPANT)
     Credits::GrantOrganizationTrial.call(user: creator, organization: organization)
     grant_credits!(owner: organization, amount: 5, actor: creator)
+    program = create_program(organization: organization)
 
     workspace = organization.workspace
     project = Projects::CreateDraft.call(
@@ -42,7 +43,8 @@ RSpec.describe Tasks::CreatorReview do
       mode: Project::MODE_TEAM,
       joining_mode: Project::JOINING_INSTANT,
       capacity: 3,
-      roles_needed: [ "Designer" ]
+      roles_needed: [ "Designer" ],
+      program_id: program.id
     )
     confirm_ends_on = ends_on >= Date.current ? ends_on : (Date.current + 30)
     project.update!(

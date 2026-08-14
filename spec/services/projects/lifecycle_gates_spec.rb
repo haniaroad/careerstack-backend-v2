@@ -31,6 +31,7 @@ RSpec.describe Projects::Lifecycle::ActionGate do
     create_membership(organization: organization, user: participant, role: OrganizationMembership::PARTICIPANT)
     Credits::GrantOrganizationTrial.call(user: creator, organization: organization)
     grant_credits!(owner: organization, amount: 5, actor: creator)
+    program = create_program(organization: organization)
 
     project = Projects::CreateDraft.call(
       user: creator,
@@ -39,7 +40,8 @@ RSpec.describe Projects::Lifecycle::ActionGate do
       mode: Project::MODE_TEAM,
       joining_mode: Project::JOINING_INSTANT,
       capacity: 3,
-      roles_needed: [ "Designer" ]
+      roles_needed: [ "Designer" ],
+      program_id: program.id
     )
     project.update!(
       ends_on: ends_on,

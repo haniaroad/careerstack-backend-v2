@@ -3,7 +3,7 @@
 module Projects
   class CreateDraft
     def self.call(user:, workspace:, title:, summary: nil, skills: [], mode: Project::MODE_SOLO,
-                  joining_mode: nil, capacity: nil, roles_needed: [], visibility: nil)
+                  joining_mode: nil, capacity: nil, roles_needed: [], visibility: nil, program_id: nil)
       new(
         user: user,
         workspace: workspace,
@@ -14,11 +14,12 @@ module Projects
         joining_mode: joining_mode,
         capacity: capacity,
         roles_needed: roles_needed,
-        visibility: visibility
+        visibility: visibility,
+        program_id: program_id
       ).call
     end
 
-    def initialize(user:, workspace:, title:, summary:, skills:, mode:, joining_mode:, capacity:, roles_needed:, visibility:)
+    def initialize(user:, workspace:, title:, summary:, skills:, mode:, joining_mode:, capacity:, roles_needed:, visibility:, program_id:)
       @user = user
       @workspace = workspace
       @title = title
@@ -29,12 +30,14 @@ module Projects
       @capacity = capacity
       @roles_needed = Array(roles_needed).map { |s| s.to_s.strip }.reject(&:blank?).uniq
       @visibility = visibility
+      @program_id = program_id
     end
 
     def call
       authorize!
       validate_mode!
       validate_visibility!
+      program = resolve_program
 
       Project.create!(
         workspace: @workspace,
@@ -47,7 +50,8 @@ module Projects
         capacity: @mode == Project::MODE_TEAM ? @capacity.to_i : nil,
         roles_needed: @mode == Project::MODE_TEAM ? @roles_needed : [],
         visibility: resolved_visibility,
-        status: Project::STATUS_DRAFT
+        status: Project::STATUS_DRAFT,
+        program: program
       )
     end
 
@@ -60,6 +64,10 @@ module Projects
 
       if @workspace.personal? && !@user.adult?
         raise DomainError.new("Personal projects require a verified adult account", code: "forbidden", status: :forbidden)
+      end
+
+      if @workspace.organization?
+        Organizations::Access.require_writable!(@workspace.organization)
       end
     end
 
@@ -96,6 +104,19 @@ module Projects
       return @visibility.to_s if @visibility.present?
 
       @workspace.organization? ? Project::VISIBILITY_PRIVATE : Project::VISIBILITY_PUBLIC
+    end
+
+    def resolve_program
+      return nil if @workspace.personal?
+
+      program_id = @program_id.presence || @user.membership_for(@workspace.organization)&.program_filter_program_id
+      raise DomainError.new("program_id is required for organization projects", code: "validation_error") if program_id.blank?
+
+      program = @workspace.organization.programs.find(program_id)
+      raise DomainError.new("Archived programs cannot receive new projects", code: "validation_error") if program.archived?
+      raise DomainError.new("Draft programs cannot receive new projects", code: "validation_error") if program.draft?
+
+      program
     end
   end
 end

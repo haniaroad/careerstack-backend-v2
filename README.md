@@ -100,6 +100,8 @@ Date of birth is collected only on the organization-invited onboarding path. It 
 
 Solid Queue is installed with a separate queue database connection and schema. **No worker process is deployed yet** — that lands with the first background job change. Locally you can run `bin/jobs` when needed.
 
+`OrganizationOffboardingSweepJob` is registered daily in production (05:00). It disables organizations whose offboarding window has ended and clears that org as the active workspace. Run on demand with `bin/rails runner OrganizationOffboardingSweepJob.perform_now`.
+
 `AgeUpDetectionJob` is registered in [`config/recurring.yml`](config/recurring.yml) to run daily in production. It promotes organization-invited minors who have reached 18 in their organization's timezone, grants the Personal workspace and personal trial credit that were withheld, and flags them for visibility review so their profile stays private until they explicitly confirm. Run it on demand with `bin/rails runner AgeUpDetectionJob.perform_now`.
 
 `InboxOverdueEscalationJob` is registered hourly in production. It marks overdue applications and team task reviews (>72h), creates creator reminder alerts, and opens durable escalations (Personal → staff target; Organization → org managers/admins with Inbox alerts). Email delivery remains deferred to the notifications change. Run on demand with `bin/rails runner InboxOverdueEscalationJob.perform_now`.
@@ -139,6 +141,26 @@ Unauthenticated visitors can open eligible public projects and public adult prof
 - Frontend routes: `/projects/:slug` and `/profile/:slug` (shell-less for anonymous; onboarded users enter the shell)
 
 Projects have a stable kebab `slug` and `visibility` (`public` | `private`). Personal defaults to public; organization defaults to private. Anonymous `/api/v1/public/*` traffic is rate-limited via Rack::Attack.
+
+## Organization administration
+
+Staff (organization `admin` and `manager`) in an active Organization workspace can manage programs, members, and pooled credits. Participants never enter this surface.
+
+Key routes (all require the `organization_id` to match the actor's **active** org workspace plus staff membership):
+
+- `GET /api/v1/organizations/:organization_id/admin` — operational pulse, capabilities, upgrade-request summary, `workspace_status`
+- `GET/POST /api/v1/organizations/:organization_id/programs`; `PATCH/DELETE /api/v1/programs/:id`; `POST .../archive`
+- `GET /api/v1/organizations/:organization_id/memberships`; `PATCH /api/v1/organization_memberships/:id`; `POST .../remove`
+- `GET /api/v1/organizations/:organization_id/invitations` (create remains `POST /api/v1/invitations`, always free)
+- `GET/PUT /api/v1/organizations/:organization_id/upgrade_request` — one open request per org; logs a staff-notification intent to `hello@careerstack.co` and **does not send Mailgun**
+- `POST /api/v1/workspaces/program_filter` — persist All programs vs a specific program for the actor's membership
+
+Organization projects require `program_id` (active program only). Personal projects stay without a program. `GET /api/v1/credits/history` in an org workspace is administrator-only; managers can still read the balance.
+
+If an existing org had no programs, backfill created an `active` program named `General` and attached existing org projects. Rename or archive it later if unused.
+
+Offboarding is operator-only: `Organizations::StartOffboarding` (no product UI). Status moves `active` → `offboarding_readonly` (30 days) → `disabled`. `OrganizationOffboardingSweepJob` runs daily in [`config/recurring.yml`](config/recurring.yml). Disabled orgs are omitted from usable workspaces. Run the sweep on demand with `bin/rails runner OrganizationOffboardingSweepJob.perform_now`.
+
 
 **Staging note:** Cloud Run may still require an authenticated invoker at the edge (org policy). Rails public allowlist is verified locally; unlock browser anonymous → API calls via the public invoker checklist in [`infra/README.md`](infra/README.md).
 

@@ -128,11 +128,13 @@ RSpec.describe "Public surfaces API", type: :request do
       org = create_organization(name: "Org Co")
       create_membership(organization: org, user: user, role: OrganizationMembership::ADMIN)
       workspace = org.workspace
+      program = create_program(organization: org)
 
       project = Projects::CreateDraft.call(
         user: user,
         workspace: workspace,
-        title: "Org Draft"
+        title: "Org Draft",
+        program_id: program.id
       )
 
       expect(project.visibility).to eq(Project::VISIBILITY_PRIVATE)

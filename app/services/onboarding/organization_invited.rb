@@ -39,7 +39,11 @@ module Onboarding
           user: @user,
           role: invitation.role,
           program: invitation.program
-        )
+        ).tap do |membership|
+          if invitation.program_id.present?
+            membership.program_enrollments.find_or_create_by!(program_id: invitation.program_id)
+          end
+        end
         invitation.update!(accepted_at: Time.current, accepted_by_user: @user)
         organization_workspace = Workspaces::EnsureOrganization.call(organization: organization)
 

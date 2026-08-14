@@ -61,11 +61,15 @@ module IdentityFixtures
   end
 
   def create_membership(organization:, user:, role: OrganizationMembership::PARTICIPANT, program: nil)
-    OrganizationMembership.create!(organization: organization, user: user, role: role, program: program)
+    membership = OrganizationMembership.create!(organization: organization, user: user, role: role, program: program)
+    if program
+      membership.program_enrollments.find_or_create_by!(program: program)
+    end
+    membership
   end
 
-  def create_program(organization:, name: "Spring Cohort")
-    Program.create!(organization: organization, name: name)
+  def create_program(organization:, name: "Spring Cohort", status: Program::STATUS_ACTIVE, **attributes)
+    Program.create!(organization: organization, name: name, status: status, **attributes)
   end
 
   # Returns the raw token, which is only ever available at creation time.

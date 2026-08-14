@@ -31,11 +31,21 @@ module Invitations
           membership.program = invitation.program
           membership.save!
         end
+        enroll_invitation_program!(membership, invitation)
 
-        Workspaces::EnsureOrganization.call(organization: invitation.organization)
+        organization_workspace = Workspaces::EnsureOrganization.call(organization: invitation.organization)
         invitation.accept!(@user)
+        @user.update!(active_workspace_id: organization_workspace.id) if organization_workspace
         membership
       end
+    end
+
+    private
+
+    def enroll_invitation_program!(membership, invitation)
+      return if invitation.program_id.blank?
+
+      membership.program_enrollments.find_or_create_by!(program_id: invitation.program_id)
     end
   end
 end

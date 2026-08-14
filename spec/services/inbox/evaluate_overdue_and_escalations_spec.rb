@@ -65,6 +65,7 @@ RSpec.describe Inbox::EvaluateOverdueAndEscalations do
     organization = create_organization(name: "Escalation Org #{SecureRandom.hex(3)}")
     create_membership(organization: organization, user: creator, role: OrganizationMembership::ADMIN)
     Credits::GrantOrganizationTrial.call(user: creator, organization: organization)
+    program = create_program(organization: organization)
 
     project = Projects::CreateDraft.call(
       user: creator,
@@ -73,7 +74,8 @@ RSpec.describe Inbox::EvaluateOverdueAndEscalations do
       mode: Project::MODE_TEAM,
       joining_mode: Project::JOINING_INSTANT,
       capacity: 2,
-      roles_needed: [ "Designer" ]
+      roles_needed: [ "Designer" ],
+      program_id: program.id
     )
     project.update!(confirmed_at: 8.days.ago, status: Project::STATUS_ACTIVE)
     ProjectMembership.create!(

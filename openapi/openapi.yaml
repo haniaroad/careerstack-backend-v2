@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: CareerStack API
-  version: 0.3.0
+  version: 0.4.0
   description: |
     Platform foundation plus identity, onboarding, and workspace contracts.
 
@@ -196,6 +196,43 @@ paths:
           $ref: "#/components/responses/NotFound"
         "422":
           $ref: "#/components/responses/UnprocessableEntity"
+  /api/v1/workspaces/program_filter:
+    post:
+      operationId: setProgramFilter
+      summary: Persist the actor's program filter in the active Organization workspace
+      description: |
+        Programs are filters, not workspaces. `mode=all` clears the filter.
+        `mode=program` requires a program in the active organization.
+        Hidden for Personal workspaces (session `program_filter` is null).
+      tags: [Workspaces]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [mode]
+              properties:
+                mode:
+                  type: string
+                  enum: [all, program]
+                program_id:
+                  type: string
+                  format: uuid
+                  nullable: true
+      responses:
+        "200":
+          description: Updated session including the new program filter
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
   /api/v1/organizations:
     post:
       operationId: createOrganization
@@ -228,6 +265,407 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+  /api/v1/organizations/{organization_id}/admin:
+    get:
+      operationId: getOrganizationAdmin
+      summary: Organization administration pulse and upgrade-request summary
+      description: |
+        Restricted to staff in the active Organization workspace. `organization_id`
+        must match that workspace. Participants receive 403. Date of birth is never
+        included.
+      tags: [Organizations]
+      parameters:
+        - $ref: "#/components/parameters/OrganizationId"
+      responses:
+        "200":
+          description: Admin payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrganizationAdmin"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/v1/organizations/{organization_id}/programs:
+    get:
+      operationId: listOrganizationPrograms
+      summary: List programs for organization staff
+      tags: [Organizations]
+      parameters:
+        - $ref: "#/components/parameters/OrganizationId"
+      responses:
+        "200":
+          description: Programs
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [programs]
+                properties:
+                  programs:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Program"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      operationId: createOrganizationProgram
+      summary: Create a program (draft or active); does not consume credits
+      tags: [Organizations]
+      parameters:
+        - $ref: "#/components/parameters/OrganizationId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                  nullable: true
+                status:
+                  type: string
+                  enum: [draft, active]
+      responses:
+        "201":
+          description: Program created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [program]
+                properties:
+                  program:
+                    $ref: "#/components/schemas/Program"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+  /api/v1/programs/{id}:
+    patch:
+      operationId: updateProgram
+      summary: Update program name, description, or activate a draft
+      tags: [Organizations]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                  nullable: true
+                status:
+                  type: string
+                  enum: [draft, active]
+      responses:
+        "200":
+          description: Program updated
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [program]
+                properties:
+                  program:
+                    $ref: "#/components/schemas/Program"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+    delete:
+      operationId: deleteEmptyDraftProgram
+      summary: Delete an empty draft program (administrator only)
+      description: Blocked when enrollments, projects, or invitations exist.
+      tags: [Organizations]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Draft deleted
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+  /api/v1/programs/{id}/archive:
+    post:
+      operationId: archiveProgram
+      summary: Archive a program (administrator only)
+      description: Archived programs block new projects, invitations, and edits.
+      tags: [Organizations]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Program archived
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [program]
+                properties:
+                  program:
+                    $ref: "#/components/schemas/Program"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+  /api/v1/organizations/{organization_id}/memberships:
+    get:
+      operationId: listOrganizationMemberships
+      summary: List organization members for staff
+      description: |
+        Includes role, program associations, and derived `age_status`. Date of
+        birth is never returned.
+      tags: [Organizations]
+      parameters:
+        - $ref: "#/components/parameters/OrganizationId"
+        - name: q
+          in: query
+          schema:
+            type: string
+        - name: role
+          in: query
+          schema:
+            type: string
+            enum: [admin, manager, participant]
+        - name: program_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Memberships
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [memberships]
+                properties:
+                  memberships:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/OrganizationMembership"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/v1/organization_memberships/{id}:
+    patch:
+      operationId: updateOrganizationMembership
+      summary: Update membership role and program enrollments
+      description: Managers cannot promote to admin or manager.
+      tags: [Organizations]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                role:
+                  type: string
+                  enum: [admin, manager, participant]
+                program_ids:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+      responses:
+        "200":
+          description: Membership updated
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [membership]
+                properties:
+                  membership:
+                    $ref: "#/components/schemas/OrganizationMembership"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+  /api/v1/organization_memberships/{id}/remove:
+    post:
+      operationId: removeOrganizationMembership
+      summary: Remove a member (administrator only)
+      description: Blocks last-administrator removal. Account and personal work are retained.
+      tags: [Organizations]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+                  enum: [left_program, completed_program, inactive, policy_violation, other]
+      responses:
+        "200":
+          description: Membership marked removed
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [membership]
+                properties:
+                  membership:
+                    $ref: "#/components/schemas/OrganizationMembership"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+  /api/v1/organizations/{organization_id}/invitations:
+    get:
+      operationId: listOrganizationInvitations
+      summary: List invitations for organization staff
+      tags: [Organizations]
+      parameters:
+        - $ref: "#/components/parameters/OrganizationId"
+        - name: program_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Invitations
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [invitations]
+                properties:
+                  invitations:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/OrganizationInvitation"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/v1/organizations/{organization_id}/upgrade_request:
+    get:
+      operationId: getUpgradeRequest
+      summary: Show the open upgrade request (administrator only)
+      tags: [Organizations]
+      parameters:
+        - $ref: "#/components/parameters/OrganizationId"
+      responses:
+        "200":
+          description: Open request or null
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [upgrade_request]
+                properties:
+                  upgrade_request:
+                    allOf:
+                      - $ref: "#/components/schemas/UpgradeRequest"
+                    nullable: true
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    put:
+      operationId: upsertUpgradeRequest
+      summary: Create or update the open upgrade request (administrator only)
+      description: |
+        One open request per organization. Persists a staff-notification intent
+        addressed conceptually to hello@careerstack.co. Does not send Mailgun.
+        Notes are stored but must not be sent as Mixpanel properties.
+      tags: [Organizations]
+      parameters:
+        - $ref: "#/components/parameters/OrganizationId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [expected_participants, expected_projects_or_cohorts, timeline]
+              properties:
+                expected_participants:
+                  type: string
+                expected_projects_or_cohorts:
+                  type: string
+                timeline:
+                  type: string
+                notes:
+                  type: string
+      responses:
+        "200":
+          description: Upserted open request
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [upgrade_request]
+                properties:
+                  upgrade_request:
+                    $ref: "#/components/schemas/UpgradeRequest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
         "422":
           $ref: "#/components/responses/UnprocessableEntity"
   /api/v1/invitations:
@@ -566,6 +1004,9 @@ paths:
     get:
       operationId: getCreditsHistory
       summary: Append-only credit ledger history for the active workspace owner
+      description: |
+        Organization workspace history is administrator-only. Managers receive 403
+        and should use `GET /api/v1/credits` for the pooled balance.
       tags: [Credits]
       responses:
         "200":
@@ -582,6 +1023,8 @@ paths:
                       $ref: "#/components/schemas/CreditLedgerEntry"
         "401":
           $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
   /api/v1/billing/checkout_sessions:
     post:
       operationId: createCheckoutSession
@@ -729,6 +1172,11 @@ paths:
                   type: array
                   items:
                     type: string
+                program_id:
+                  type: string
+                  format: uuid
+                  nullable: true
+                  description: Required for organization projects; must be an active program.
       responses:
         "201":
           description: Draft created
@@ -797,6 +1245,10 @@ paths:
                   type: array
                   items:
                     type: string
+                program_id:
+                  type: string
+                  format: uuid
+                  nullable: true
       responses:
         "200":
           description: Draft updated
@@ -1130,6 +1582,16 @@ paths:
           schema:
             type: string
             format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                program_id:
+                  type: string
+                  format: uuid
+                  description: Required for organization drafts when the program filter is All programs
       responses:
         "200":
           description: Draft project updated from generation
@@ -1163,6 +1625,14 @@ components:
       description: Raw invitation token as delivered to the invitee.
       schema:
         type: string
+    OrganizationId:
+      name: organization_id
+      in: path
+      required: true
+      description: Must match the caller's active Organization workspace.
+      schema:
+        type: string
+        format: uuid
   schemas:
     HealthStatus:
       type: object
@@ -1232,6 +1702,11 @@ components:
           format: uuid
           nullable: true
           description: Null for Personal workspaces.
+        workspace_status:
+          type: string
+          nullable: true
+          enum: [active, offboarding_readonly, disabled]
+          description: Present for Organization workspaces; omitted/null for Personal.
     SessionUser:
       type: object
       required: [id, email, status, onboarding_complete]
@@ -1440,13 +1915,223 @@ components:
           type: array
           items:
             type: object
-            required: [id, name]
+            required: [id, name, status]
             properties:
               id:
                 type: string
                 format: uuid
               name:
                 type: string
+              status:
+                type: string
+                enum: [draft, active, archived]
+    OrgAdminCapabilities:
+      type: object
+      required:
+        - can_archive_programs
+        - can_delete_empty_drafts
+        - can_remove_members
+        - can_view_credit_history
+        - can_submit_upgrade_request
+      properties:
+        can_archive_programs:
+          type: boolean
+        can_delete_empty_drafts:
+          type: boolean
+        can_remove_members:
+          type: boolean
+        can_view_credit_history:
+          type: boolean
+        can_submit_upgrade_request:
+          type: boolean
+    OrganizationRecord:
+      type: object
+      required: [id, name, workspace_status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        timezone:
+          type: string
+        logo_url:
+          type: string
+          nullable: true
+        workspace_id:
+          type: string
+          format: uuid
+          nullable: true
+        workspace_status:
+          type: string
+          enum: [active, offboarding_readonly, disabled]
+        offboarding_started_at:
+          type: string
+          format: date-time
+          nullable: true
+        offboarding_ends_on:
+          type: string
+          format: date
+          nullable: true
+    OperationalPulse:
+      type: object
+      required: [active_programs, active_projects, attention_count, credit_remaining]
+      properties:
+        active_programs:
+          type: integer
+        active_projects:
+          type: integer
+        attention_count:
+          type: integer
+        pending_invitations:
+          type: integer
+        overdue_applications:
+          type: integer
+        credit_remaining:
+          type: integer
+        credit_label:
+          type: string
+    UpgradeRequest:
+      type: object
+      required: [id, organization_id, expected_participants, expected_projects_or_cohorts, timeline, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        expected_participants:
+          type: string
+        expected_projects_or_cohorts:
+          type: string
+        timeline:
+          type: string
+        notes:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [open, contacted, closed]
+        updated_at:
+          type: string
+          format: date-time
+    OrganizationAdmin:
+      type: object
+      required: [organization, capabilities, operational_pulse, credits]
+      properties:
+        organization:
+          $ref: "#/components/schemas/OrganizationRecord"
+        capabilities:
+          $ref: "#/components/schemas/OrgAdminCapabilities"
+        operational_pulse:
+          $ref: "#/components/schemas/OperationalPulse"
+        credits:
+          $ref: "#/components/schemas/CreditsSummary"
+        upgrade_request:
+          allOf:
+            - $ref: "#/components/schemas/UpgradeRequest"
+          nullable: true
+    Program:
+      type: object
+      required: [id, organization_id, name, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [draft, active, archived]
+        member_count:
+          type: integer
+        active_project_count:
+          type: integer
+        completed_project_count:
+          type: integer
+        pending_invitation_count:
+          type: integer
+        can_delete:
+          type: boolean
+        can_archive:
+          type: boolean
+        read_only:
+          type: boolean
+    OrganizationMembership:
+      type: object
+      required: [id, organization_id, user_id, email, role, status, age_status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        display_name:
+          type: string
+          nullable: true
+        email:
+          type: string
+        role:
+          type: string
+          enum: [admin, manager, participant]
+        status:
+          type: string
+          enum: [active, removed]
+        age_status:
+          $ref: "#/components/schemas/AgeStatus"
+        program_ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+        program_names:
+          type: array
+          items:
+            type: string
+        is_last_administrator:
+          type: boolean
+        can_remove:
+          type: boolean
+    OrganizationInvitation:
+      type: object
+      required: [id, organization_id, role, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          nullable: true
+        role:
+          type: string
+          enum: [admin, manager, participant]
+        program_id:
+          type: string
+          format: uuid
+          nullable: true
+        program_name:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [pending, accepted, expired]
+        invited_by_name:
+          type: string
+          nullable: true
     Session:
       type: object
       required:
@@ -1477,6 +2162,11 @@ components:
         can_access_org_admin:
           type: boolean
           description: True when the active workspace is an organization the caller administers or manages.
+        org_admin_capabilities:
+          allOf:
+            - $ref: "#/components/schemas/OrgAdminCapabilities"
+          nullable: true
+          description: Present for staff in an Organization workspace; null otherwise.
         age_visibility:
           $ref: "#/components/schemas/AgeVisibility"
         program_filter:
@@ -1587,6 +2277,11 @@ components:
         workspace_id:
           type: string
           format: uuid
+        program_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Required for organization projects; always null for personal projects.
         creator_id:
           type: string
           format: uuid
