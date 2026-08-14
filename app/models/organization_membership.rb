@@ -70,6 +70,10 @@ class OrganizationMembership < ApplicationRecord
     administrator?
   end
 
+  def can_export_reports?
+    staff?
+  end
+
   def last_administrator?
     administrator? && organization.organization_memberships.admins.where.not(id: id).none?
   end

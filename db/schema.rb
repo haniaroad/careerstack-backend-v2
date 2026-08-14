@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_08_14_010000) do
+ActiveRecord::Schema[8.0].define(version: 2026_08_14_190000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -136,7 +136,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_14_010000) do
     t.index ["status"], name: "index_ai_reviews_on_status"
     t.index ["task_id", "status"], name: "index_ai_reviews_on_task_id_and_status"
     t.index ["task_id"], name: "index_ai_reviews_on_task_id"
-    t.index ["task_id"], name: "index_ai_reviews_one_active_per_task", unique: true, where: "((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('running'::character varying)::text]))"
+    t.index ["task_id"], name: "index_ai_reviews_one_active_per_task", unique: true, where: "((status)::text = ANY ((ARRAY['pending'::character varying, 'running'::character varying])::text[]))"
     t.index ["task_submission_id"], name: "index_ai_reviews_on_task_submission_id"
     t.index ["user_id", "created_at"], name: "index_ai_reviews_on_user_id_and_created_at"
     t.index ["user_id"], name: "index_ai_reviews_on_user_id"
@@ -306,6 +306,45 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_14_010000) do
     t.index ["program_filter_program_id"], name: "index_organization_memberships_on_program_filter_program_id"
     t.index ["program_id"], name: "index_organization_memberships_on_program_id"
     t.index ["user_id"], name: "index_organization_memberships_on_user_id"
+  end
+
+  create_table "organization_report_audits", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "organization_id", null: false
+    t.uuid "organization_report_id", null: false
+    t.uuid "actor_id", null: false
+    t.string "action", null: false
+    t.string "format", null: false
+    t.boolean "aggregate_only", default: false, null: false
+    t.boolean "includes_minor_names", default: false, null: false
+    t.datetime "occurred_at", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["actor_id"], name: "index_organization_report_audits_on_actor_id"
+    t.index ["organization_id", "occurred_at"], name: "idx_on_organization_id_occurred_at_63f1d4a148"
+    t.index ["organization_id"], name: "index_organization_report_audits_on_organization_id"
+    t.index ["organization_report_id"], name: "index_organization_report_audits_on_organization_report_id"
+  end
+
+  create_table "organization_reports", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "organization_id", null: false
+    t.uuid "program_id"
+    t.uuid "requested_by_id", null: false
+    t.date "period_starts_on", null: false
+    t.date "period_ends_on", null: false
+    t.string "format", null: false
+    t.boolean "aggregate_only", default: false, null: false
+    t.string "status", default: "draft", null: false
+    t.boolean "includes_minor_names", default: false, null: false
+    t.datetime "generated_at"
+    t.string "error_code"
+    t.jsonb "metrics_json", default: {}, null: false
+    t.text "methodology_note"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["organization_id", "status"], name: "index_organization_reports_on_organization_id_and_status"
+    t.index ["organization_id"], name: "index_organization_reports_on_organization_id"
+    t.index ["program_id"], name: "index_organization_reports_on_program_id"
+    t.index ["requested_by_id"], name: "index_organization_reports_on_requested_by_id"
   end
 
   create_table "organization_upgrade_requests", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -500,6 +539,28 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_14_010000) do
     t.index ["workspace_id"], name: "index_projects_on_workspace_id"
   end
 
+  create_table "self_reported_outcomes", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "user_id", null: false
+    t.uuid "organization_id", null: false
+    t.uuid "program_id"
+    t.uuid "project_id"
+    t.string "outcome_type", null: false
+    t.date "occurred_on", null: false
+    t.string "careerstack_contribution", null: false
+    t.string "institution"
+    t.string "title"
+    t.text "note"
+    t.string "reporting_label", default: "self_reported", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["organization_id", "outcome_type"], name: "idx_on_organization_id_outcome_type_4b2953f0d6"
+    t.index ["organization_id"], name: "index_self_reported_outcomes_on_organization_id"
+    t.index ["program_id"], name: "index_self_reported_outcomes_on_program_id"
+    t.index ["project_id"], name: "index_self_reported_outcomes_on_project_id"
+    t.index ["user_id", "occurred_on"], name: "index_self_reported_outcomes_on_user_id_and_occurred_on"
+    t.index ["user_id"], name: "index_self_reported_outcomes_on_user_id"
+  end
+
   create_table "stripe_customers", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.uuid "user_id", null: false
     t.string "stripe_customer_id", null: false
@@ -651,6 +712,12 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_14_010000) do
   add_foreign_key "organization_memberships", "programs", column: "program_filter_program_id"
   add_foreign_key "organization_memberships", "users"
   add_foreign_key "organization_memberships", "users", column: "removed_by_user_id"
+  add_foreign_key "organization_report_audits", "organization_reports"
+  add_foreign_key "organization_report_audits", "organizations"
+  add_foreign_key "organization_report_audits", "users", column: "actor_id"
+  add_foreign_key "organization_reports", "organizations"
+  add_foreign_key "organization_reports", "programs"
+  add_foreign_key "organization_reports", "users", column: "requested_by_id"
   add_foreign_key "organization_upgrade_requests", "organizations"
   add_foreign_key "organization_upgrade_requests", "users", column: "requesting_user_id"
   add_foreign_key "organizations", "taxonomy_terms", column: "primary_goal_term_id"
@@ -676,6 +743,10 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_14_010000) do
   add_foreign_key "projects", "programs"
   add_foreign_key "projects", "users", column: "creator_id"
   add_foreign_key "projects", "workspaces"
+  add_foreign_key "self_reported_outcomes", "organizations"
+  add_foreign_key "self_reported_outcomes", "programs"
+  add_foreign_key "self_reported_outcomes", "projects"
+  add_foreign_key "self_reported_outcomes", "users"
   add_foreign_key "stripe_customers", "users"
   add_foreign_key "task_submission_links", "task_submissions"
   add_foreign_key "task_submissions", "tasks"

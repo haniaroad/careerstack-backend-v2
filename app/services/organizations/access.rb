@@ -46,5 +46,15 @@ module Organizations
         "This organization is read-only during offboarding"
       raise Error.new(message, code: "organization_read_only")
     end
+
+    def self.require_exportable!(organization)
+      return if organization.workspace_active? || organization.offboarding_readonly?
+
+      raise Error.new(
+        "This organization workspace is disabled",
+        code: "organization_disabled",
+        status: :forbidden
+      )
+    end
   end
 end

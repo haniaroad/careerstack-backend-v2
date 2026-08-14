@@ -30,6 +30,14 @@ Rails.application.routes.draw do
       get "organizations/:organization_id/invitations", to: "organization_invitations#index"
       get "organizations/:organization_id/upgrade_request", to: "upgrade_requests#show"
       put "organizations/:organization_id/upgrade_request", to: "upgrade_requests#upsert"
+      get "organizations/:organization_id/reports", to: "organization_reports#index"
+      post "organizations/:organization_id/reports", to: "organization_reports#create"
+      get "organizations/:organization_id/outcome_aggregates", to: "organization_reports#outcome_aggregates"
+      get "organization_reports/:id", to: "organization_reports#show"
+      post "organization_reports/:id/generate", to: "organization_reports#generate"
+      post "organization_reports/:id/download", to: "organization_reports#download"
+      get "outcomes", to: "outcomes#index"
+      post "outcomes", to: "outcomes#create"
       post "invitations", to: "invitations#create"
       get "invitations/:token", to: "invitations#show"
       post "invitations/:token/accept", to: "invitations#accept"
@@ -82,5 +90,11 @@ Rails.application.routes.draw do
     end
   end
 
-  match "*unmatched", to: "errors#not_found", via: :all
+  # Active Storage engine routes are appended after this file. A greedy catch-all
+  # would send signed blob URLs through ErrorsController (Firebase required) and
+  # 401 in a new tab that has no Authorization header.
+  match "*unmatched",
+        to: "errors#not_found",
+        via: :all,
+        constraints: ->(req) { !req.path.start_with?("/rails/active_storage") }
 end

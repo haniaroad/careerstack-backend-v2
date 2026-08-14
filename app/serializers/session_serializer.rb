@@ -115,7 +115,8 @@ class SessionSerializer
       can_delete_empty_drafts: membership.can_delete_empty_drafts?,
       can_remove_members: membership.can_remove_members?,
       can_view_credit_history: membership.can_view_credit_history?,
-      can_submit_upgrade_request: membership.administrator?
+      can_submit_upgrade_request: membership.administrator?,
+      can_export_reports: membership.can_export_reports?
     }
   end
 end

@@ -157,6 +157,22 @@ Key routes (all require the `organization_id` to match the actor's **active** or
 
 Organization projects require `program_id` (active program only). Personal projects stay without a program. `GET /api/v1/credits/history` in an org workspace is administrator-only; managers can still read the balance.
 
+## Organization reporting
+
+Staff (admin and manager) in an Organization workspace can create immutable report snapshots:
+
+- `GET/POST /api/v1/organizations/:organization_id/reports`
+- `GET /api/v1/organization_reports/:id` (poll while `generating`)
+- `POST /api/v1/organization_reports/:id/generate` — Solid Queue `reports` (or inline when `REPORTS_INLINE_JOBS=true` / test)
+- `POST /api/v1/organization_reports/:id/download` — 15-minute signed URL; named reports that include minor names require `confirm_minor_names=true`
+- `GET /api/v1/organizations/:organization_id/outcome_aggregates`
+
+PDF/CSV generation does not consume credits. Date of birth is never included in files, JSON, logs, or Mixpanel. Aggregate-only exports strip names, emails, user ids, and free-text notes.
+
+During offboarding read-only, exports still work. Disabled workspaces reject create/generate/download.
+
+Participants record private outcomes via `GET/POST /api/v1/outcomes` while an Organization workspace is active. Outcomes are labeled self-reported and are omitted from profile DTOs.
+
 If an existing org had no programs, backfill created an `active` program named `General` and attached existing org projects. Rename or archive it later if unused.
 
 Offboarding is operator-only: `Organizations::StartOffboarding` (no product UI). Status moves `active` → `offboarding_readonly` (30 days) → `disabled`. `OrganizationOffboardingSweepJob` runs daily in [`config/recurring.yml`](config/recurring.yml). Disabled orgs are omitted from usable workspaces. Run the sweep on demand with `bin/rails runner OrganizationOffboardingSweepJob.perform_now`.
