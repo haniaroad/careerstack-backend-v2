@@ -40,6 +40,7 @@ services:
       AI_KILL_SWITCH: ${AI_KILL_SWITCH:-false}
       AI_BUDGET_STOP: ${AI_BUDGET_STOP:-false}
       AI_INLINE_JOBS: ${AI_INLINE_JOBS:-true}
+      REPORTS_INLINE_JOBS: ${REPORTS_INLINE_JOBS:-true}
     depends_on:
       postgres:
         condition: service_healthy

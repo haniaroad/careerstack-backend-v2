@@ -28,4 +28,11 @@ RSpec.describe "Error envelope", type: :request do
       )
     )
   end
+
+  it "does not require Firebase for Active Storage signed blob routes" do
+    get "/rails/active_storage/blobs/redirect/not-a-valid-signed-id/report.pdf"
+
+    expect(response).not_to have_http_status(:unauthorized)
+    expect(response).to have_http_status(:not_found)
+  end
 end

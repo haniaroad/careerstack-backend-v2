@@ -1933,6 +1933,7 @@ components:
         - can_remove_members
         - can_view_credit_history
         - can_submit_upgrade_request
+        - can_export_reports
       properties:
         can_archive_programs:
           type: boolean
@@ -1943,6 +1944,8 @@ components:
         can_view_credit_history:
           type: boolean
         can_submit_upgrade_request:
+          type: boolean
+        can_export_reports:
           type: boolean
     OrganizationRecord:
       type: object
@@ -2918,5 +2921,169 @@ components:
       responses:
         "201":
           description: Direct upload instructions
+  /api/v1/organizations/{organization_id}/reports:
+    get:
+      operationId: listOrganizationReports
+      summary: List organization report snapshots
+      description: Staff only. Date of birth is never included.
+      tags: [Organizations]
+      parameters:
+        - $ref: "#/components/parameters/OrganizationId"
+      responses:
+        "200":
+          description: Report snapshots
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      operationId: createOrganizationReport
+      summary: Create a report snapshot (does not consume credits)
+      tags: [Organizations]
+      parameters:
+        - $ref: "#/components/parameters/OrganizationId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [period_starts_on, period_ends_on, format]
+              properties:
+                period_starts_on: { type: string, format: date }
+                period_ends_on: { type: string, format: date }
+                program_id: { type: string, format: uuid, nullable: true }
+                format: { type: string, enum: [pdf, csv] }
+                aggregate_only: { type: boolean }
+      responses:
+        "201":
+          description: Draft snapshot created
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/v1/organizations/{organization_id}/outcome_aggregates:
+    get:
+      operationId: listOrganizationOutcomeAggregates
+      summary: Aggregated self-reported outcome counts for Reports
+      tags: [Organizations]
+      parameters:
+        - $ref: "#/components/parameters/OrganizationId"
+        - name: program_id
+          in: query
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Labeled self-reported counts
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/v1/organization_reports/{id}:
+    get:
+      operationId: getOrganizationReport
+      summary: Show a report snapshot (poll while generating)
+      tags: [Organizations]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Snapshot
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/v1/organization_reports/{id}/generate:
+    post:
+      operationId: generateOrganizationReport
+      summary: Generate PDF or CSV asynchronously
+      tags: [Organizations]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Generating or ready
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/v1/organization_reports/{id}/download:
+    post:
+      operationId: downloadOrganizationReport
+      summary: Issue a 15-minute signed download URL
+      description: |
+        Requires `confirm_minor_names=true` when the snapshot includes minor names.
+        Unauthenticated requests are rejected. Date of birth is never in the file.
+      tags: [Organizations]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                confirm_minor_names: { type: boolean }
+      responses:
+        "200":
+          description: Signed URL and expiry
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+  /api/v1/outcomes:
+    get:
+      operationId: listOwnOutcomes
+      summary: List the caller's self-reported outcomes
+      tags: [Organizations]
+      responses:
+        "200":
+          description: Own outcomes
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+    post:
+      operationId: createOwnOutcome
+      summary: Record a self-reported outcome for the active Organization workspace
+      description: Always stored as the caller. `user_id` in the body is ignored. Personal-only actors receive 403.
+      tags: [Organizations]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [outcome_type, month, year, careerstack_contribution]
+              properties:
+                outcome_type:
+                  type: string
+                  enum:
+                    - interview
+                    - internship
+                    - freelance_opportunity
+                    - job
+                    - promotion
+                    - college_acceptance
+                    - training_or_certification_acceptance
+                    - other_post_secondary_acceptance
+                month: { type: integer, minimum: 1, maximum: 12 }
+                year: { type: integer }
+                careerstack_contribution: { type: string, enum: [yes, partially, not_sure] }
+                institution: { type: string }
+                title: { type: string }
+                note: { type: string }
+                program_id: { type: string, format: uuid }
+                project_id: { type: string, format: uuid }
+      responses:
+        "201":
+          description: Outcome created
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
 security:
   - bearerAuth: []

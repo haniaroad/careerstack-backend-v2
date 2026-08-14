@@ -33,6 +33,10 @@ group :test do
   gem "rack-test"
 end
 
+# Organization report PDFs
+gem "prawn", "~> 2.5"
+gem "prawn-table", "~> 0.2"
+
 # File evidence uploads + AI review extractors
 gem "image_processing", "~> 1.2"
 gem "pdf-reader", "~> 2.12"
