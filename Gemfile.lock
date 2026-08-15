@@ -313,7 +313,7 @@ GEM
     ruby-vips (2.3.0)
       ffi (~> 1.12)
       logger
-    rubyzip (2.4.1)
+    rubyzip (3.4.1)
     securerandom (0.4.1)
     sentry-rails (6.6.2)
       railties (>= 5.2.0)
@@ -378,7 +378,7 @@ DEPENDENCIES
   rails (~> 8.0.2)
   rspec-rails (~> 7.0)
   rubocop-rails-omakase
-  rubyzip (~> 2.3)
+  rubyzip (~> 3.4)
   sentry-rails
   sentry-ruby
   solid_queue
