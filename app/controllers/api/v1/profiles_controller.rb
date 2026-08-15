@@ -46,6 +46,7 @@ module Api
           :current_role_term_id, :current_role_other, :experience_level,
           :target_role_term_id, :target_role_other,
           :bio, :image_url, :github_url, :linkedin_url, :portfolio_url,
+          :timezone,
           interests: []
         )
       end

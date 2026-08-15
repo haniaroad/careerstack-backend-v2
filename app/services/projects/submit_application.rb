@@ -58,7 +58,16 @@ module Projects
         github_url: @github_url.presence,
         resume_url: @resume_url.presence,
         status: ProjectApplication::STATUS_PENDING
-      )
+      ).tap do |application|
+        Notifications::Hook.emit(
+          event_key: "application_received",
+          actor: @user,
+          recipients: [ @project.creator ],
+          source: application,
+          project: @project,
+          payload: Notifications::Hook.project_payload(@project)
+        )
+      end
     end
   end
 end

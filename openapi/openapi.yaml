@@ -73,6 +73,169 @@ paths:
           $ref: "#/components/responses/Unauthenticated"
         "403":
           $ref: "#/components/responses/Forbidden"
+  /api/v1/notifications:
+    get:
+      operationId: listNotifications
+      summary: List the caller's in-app notifications
+      description: |
+        Returns the authenticated user's notification rows (newest unread first).
+        Staff-only email rows with no recipient user are never listed. The header
+        bell uses this list; Inbox remains a separate operational queue.
+      tags: [Notifications]
+      parameters:
+        - name: unread
+          in: query
+          schema:
+            type: boolean
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 30
+      responses:
+        "200":
+          description: Notification list
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [notifications]
+                properties:
+                  notifications:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Notification"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+  /api/v1/notifications/unread_count:
+    get:
+      operationId: getNotificationUnreadCount
+      summary: Unread in-app notification count
+      tags: [Notifications]
+      responses:
+        "200":
+          description: Unread count
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [unread_count]
+                properties:
+                  unread_count:
+                    type: integer
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+  /api/v1/notifications/read_all:
+    post:
+      operationId: markAllNotificationsRead
+      summary: Mark all of the caller's unread notifications as read
+      tags: [Notifications]
+      responses:
+        "200":
+          description: Unread count after marking
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [unread_count]
+                properties:
+                  unread_count:
+                    type: integer
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+  /api/v1/notifications/{id}/read:
+    post:
+      operationId: markNotificationRead
+      summary: Mark one of the caller's notifications as read
+      tags: [Notifications]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Updated notification
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [notification]
+                properties:
+                  notification:
+                    $ref: "#/components/schemas/Notification"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/v1/notification_preferences:
+    get:
+      operationId: getNotificationPreferences
+      summary: Email preference categories for the caller
+      tags: [Notifications]
+      responses:
+        "200":
+          description: Preference categories
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [preferences]
+                properties:
+                  preferences:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/NotificationPreference"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+    put:
+      operationId: updateNotificationPreferences
+      summary: Update email preference categories
+      description: Mandatory account categories cannot be disabled.
+      tags: [Notifications]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [preferences]
+              properties:
+                preferences:
+                  type: array
+                  items:
+                    type: object
+                    required: [id]
+                    properties:
+                      id:
+                        type: string
+                        enum: [account, project_activity, reminders]
+                      email_enabled:
+                        type: boolean
+                      digest_cadence:
+                        type: string
+                        enum: [realtime, daily, weekly, off]
+      responses:
+        "200":
+          description: Updated preferences
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [preferences]
+                properties:
+                  preferences:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/NotificationPreference"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
   /api/v1/onboarding/independent:
     post:
       operationId: completeIndependentOnboarding
@@ -1739,6 +1902,9 @@ components:
         public_identity_visible:
           type: boolean
           description: False for minors, unknown age, and adults pending visibility review.
+        timezone:
+          type: string
+          description: IANA timezone for digest send windows. Default UTC. Never included on public or by-slug profiles.
     SessionProfile:
       type: object
       nullable: true
@@ -1882,6 +2048,9 @@ components:
         target_role_other:
           type: string
           nullable: true
+        timezone:
+          type: string
+          description: IANA timezone. Owner-only; omitted from public and by-slug profile payloads.
     AgeVisibility:
       type: object
       required: [visibility_review_required, public_identity_confirmed]
@@ -2729,6 +2898,52 @@ components:
         is_other:
           type: boolean
           description: When true, the client must collect matching free text.
+    Notification:
+      type: object
+      required: [id, event_key, title, read, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        event_key:
+          type: string
+        title:
+          type: string
+        body:
+          type: string
+        path:
+          type: string
+        read:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        project_id:
+          type: string
+          format: uuid
+          nullable: true
+    NotificationPreference:
+      type: object
+      required: [id, label, description, tier, can_disable, email_enabled]
+      properties:
+        id:
+          type: string
+          enum: [account, project_activity, reminders]
+        label:
+          type: string
+        description:
+          type: string
+        tier:
+          type: string
+          enum: [mandatory, realtime_config, digest_config]
+        can_disable:
+          type: boolean
+        email_enabled:
+          type: boolean
+        digest_cadence:
+          type: string
+          nullable: true
+          enum: [realtime, daily, weekly, off]
   responses:
     NotFound:
       description: Resource not found

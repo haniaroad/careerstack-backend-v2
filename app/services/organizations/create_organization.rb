@@ -46,6 +46,15 @@ module Organizations
           membership: membership,
           trial_granted: trial_granted
         )
+      end.tap do |result|
+        Notifications::Hook.emit(
+          event_key: "organization_ready",
+          actor: nil,
+          recipients: [ @user ],
+          source: result.organization,
+          organization: result.organization,
+          payload: Notifications::Hook.org_payload(result.organization)
+        )
       end
     end
 

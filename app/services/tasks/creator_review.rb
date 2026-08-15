@@ -46,6 +46,23 @@ module Tasks
           project: @task.project
         )
         Projects::Lifecycle::Evaluate.call(project: @task.project.reload)
+        Notifications::Hook.emit(
+          event_key: "task_approved",
+          actor: @actor,
+          recipients: [ @task.assignee ],
+          source: @task,
+          project: @task.project,
+          payload: Notifications::Hook.task_payload(@task)
+        )
+      elsif @decision == Task::DECISION_CORRECTIONS_REQUESTED
+        Notifications::Hook.emit(
+          event_key: "corrections_requested",
+          actor: @actor,
+          recipients: [ @task.assignee ],
+          source: @task,
+          project: @task.project,
+          payload: Notifications::Hook.task_payload(@task)
+        )
       end
 
       @task.reload

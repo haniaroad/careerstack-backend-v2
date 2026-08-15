@@ -41,6 +41,13 @@ services:
       AI_BUDGET_STOP: ${AI_BUDGET_STOP:-false}
       AI_INLINE_JOBS: ${AI_INLINE_JOBS:-true}
       REPORTS_INLINE_JOBS: ${REPORTS_INLINE_JOBS:-true}
+      EMAIL_INLINE_JOBS: ${EMAIL_INLINE_JOBS:-true}
+      MAIL_ADAPTER: ${MAIL_ADAPTER:-log}
+      MAILGUN_API_KEY: ${MAILGUN_API_KEY:-}
+      MAILGUN_DOMAIN: ${MAILGUN_DOMAIN:-}
+      MAILGUN_FROM: ${MAILGUN_FROM:-}
+      APP_ORIGIN: ${APP_ORIGIN:-http://localhost:5173}
+      STAFF_INBOX: ${STAFF_INBOX:-hello@careerstack.co}
     depends_on:
       postgres:
         condition: service_healthy

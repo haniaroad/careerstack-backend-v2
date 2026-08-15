@@ -134,6 +134,26 @@ module Projects
             alert.organization_id = @project.workspace.organization_id
           end
         end
+
+        event_key = lifecycle_event_key(key)
+        return if event_key.nil?
+
+        Notifications::Hook.emit(
+          event_key: event_key,
+          actor: nil,
+          recipients: User.where(id: recipient_ids),
+          source: Notifications::Hook.named_source(key),
+          project: @project,
+          payload: Notifications::Hook.project_payload(@project, "ends_on" => @project.ends_on.to_s)
+        )
+      end
+
+      def lifecycle_event_key(key)
+        return "project_completed" if key.start_with?("lifecycle:completed:")
+        return "grace_period_started" if key.start_with?("lifecycle:grace:")
+        return "project_ending_soon" if key.start_with?("lifecycle:ending_soon:")
+
+        nil
       end
     end
   end

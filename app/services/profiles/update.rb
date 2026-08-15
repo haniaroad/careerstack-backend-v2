@@ -6,7 +6,7 @@ module Profiles
       display_name country state_region career_goal
       current_role_term_id current_role_other experience_level
       target_role_term_id target_role_other
-      bio image_url github_url linkedin_url portfolio_url interests
+      bio image_url github_url linkedin_url portfolio_url interests timezone
     ].freeze
 
     def self.call(user:, params:)
@@ -42,6 +42,14 @@ module Profiles
         next if @params[field].match?(/\Ahttps:\/\//i)
 
         raise DomainError.new("#{field} must be an https URL", code: "validation_error")
+      end
+
+      timezone = @params.delete("timezone") || @params.delete(:timezone)
+      if timezone.present?
+        @user.timezone = timezone
+        unless @user.save
+          raise DomainError.new(@user.errors.full_messages.to_sentence, code: "validation_error")
+        end
       end
 
       profile.assign_attributes(@params)

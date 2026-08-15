@@ -77,6 +77,16 @@ module Projects
           alert.organization_id = @project.workspace.organization_id
         end
       end
+
+      recipients = User.where(id: recipient_ids)
+      Notifications::Hook.emit(
+        event_key: "date_changed",
+        actor: @user,
+        recipients: recipients,
+        source: Notifications::Hook.named_source("date-changed:#{@project.id}:#{next_date}"),
+        project: @project,
+        payload: Notifications::Hook.project_payload(@project, "ends_on" => next_date.to_s)
+      )
     end
   end
 end

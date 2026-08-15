@@ -24,6 +24,14 @@ module Tasks
       raise DomainError.new("Assignee must be an active participant", code: "validation_error") if membership.nil?
 
       @task.update!(assignee: @assignee)
+      Notifications::Hook.emit(
+        event_key: "task_assigned",
+        actor: @actor,
+        recipients: [ @assignee ],
+        source: @task,
+        project: project,
+        payload: Notifications::Hook.task_payload(@task)
+      )
       @task
     end
   end

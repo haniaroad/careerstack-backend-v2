@@ -47,6 +47,11 @@ Compose starts `api` + `postgres`. The `web` service name is reserved for the fr
 | `OPENROUTER_BASE_URL` | OpenRouter API base (default `https://openrouter.ai/api/v1`) |
 | `AI_KILL_SWITCH` | When `true`, reject new nonessential AI work without calling the provider |
 | `AI_BUDGET_STOP` | When `true`, same stop behavior for budget exhaustion |
+| `EMAIL_INLINE_JOBS` | When `true`, run non-coalesced notification mail in-process (default for local Compose) |
+| `MAIL_ADAPTER` | `log` (default) or `mailgun` |
+| `MAILGUN_API_KEY` / `MAILGUN_DOMAIN` / `MAILGUN_FROM` | Mailgun HTTP credentials when `MAIL_ADAPTER=mailgun` |
+| `APP_ORIGIN` | Frontend origin used in email CTA links |
+| `STAFF_INBOX` | Staff-only copy destination (default `hello@careerstack.co`) |
 
 No credentials are committed. `.env` is gitignored; use `.env.example` placeholders only.
 
@@ -94,17 +99,21 @@ curl -s http://localhost:3000/api/v1/session \
 
 Controlled taxonomies (roles, experience levels, organization structures and goals) are database-backed with stable term IDs. Seed or re-seed them idempotently with `bin/rails db:seed`.
 
-Date of birth is collected only on the organization-invited onboarding path. It is never returned by any endpoint, is filtered from request logs, and only the derived `age_status` (`adult` | `minor` | `unknown`) is exposed.
+Date of birth is collected only on the organization-invited onboarding path. It is never returned by any endpoint, is filtered from request logs, and only the derived `age_status` (`adult` | `minor` | `unknown`) is exposed. Transactional email and Mixpanel also omit date of birth and other users' emails.
+
+The header **bell is the notification center**, not Inbox. Inbox remains the operational queue for applications, reviews, and escalations. Firebase Auth still owns magic-link sign-in email; Rails sends the rest through `TransactionalMail` (`MAIL_ADAPTER=log` locally, `mailgun` when configured).
 
 ## Background jobs
 
-Solid Queue is installed with a separate queue database connection and schema. **No worker process is deployed yet** — that lands with the first background job change. Locally you can run `bin/jobs` when needed.
+Solid Queue is installed with a separate queue database connection and schema. **No worker process is deployed yet** — local Compose and Cloud Run currently rely on inline escapes (`AI_INLINE_JOBS`, `REPORTS_INLINE_JOBS`, `EMAIL_INLINE_JOBS`). Staging's durable path is a Solid Queue worker including the `mailers` queue. Locally you can run `bin/jobs` when needed.
+
+`Notifications::DigestJob` is registered hourly in production on `mailers`. It produces due-task, pending-invitation, and weekly activity rows, then delivers digest-tier mail only between 08:00 and 20:00 in the recipient's IANA timezone (`users.timezone`). Empty digests are never sent. Run on demand with `bin/rails runner Notifications::DigestJob.perform_now`. Until a worker is deployed, set `EMAIL_INLINE_JOBS=true` so non-coalesced mail runs in-process (coalesced events stay scheduled for 10 minutes and need an explicit deliver or a worker).
 
 `OrganizationOffboardingSweepJob` is registered daily in production (05:00). It disables organizations whose offboarding window has ended and clears that org as the active workspace. Run on demand with `bin/rails runner OrganizationOffboardingSweepJob.perform_now`.
 
 `AgeUpDetectionJob` is registered in [`config/recurring.yml`](config/recurring.yml) to run daily in production. It promotes organization-invited minors who have reached 18 in their organization's timezone, grants the Personal workspace and personal trial credit that were withheld, and flags them for visibility review so their profile stays private until they explicitly confirm. Run it on demand with `bin/rails runner AgeUpDetectionJob.perform_now`.
 
-`InboxOverdueEscalationJob` is registered hourly in production. It marks overdue applications and team task reviews (>72h), creates creator reminder alerts, and opens durable escalations (Personal → staff target; Organization → org managers/admins with Inbox alerts). Email delivery remains deferred to the notifications change. Run on demand with `bin/rails runner InboxOverdueEscalationJob.perform_now`.
+`InboxOverdueEscalationJob` is registered hourly in production. It marks overdue applications and team task reviews (>72h), creates creator reminder alerts, and opens durable escalations (Personal → staff target plus staff-only email; Organization → org managers/admins with Inbox alerts and in-app notifications). Run on demand with `bin/rails runner InboxOverdueEscalationJob.perform_now`.
 
 `ProjectLifecycleSweepJob` is registered hourly in production. It evaluates active projects with an `ends_on` date: derived phases use UTC calendar boundaries (`ending_soon` within 7 days of end, `grace_period` for 7 days after end, then `expired`). Confirm requires `ends_on`. Expiration marks unresolved tasks `incomplete` and does not restore credits; all tasks assigned and approved auto-complete the project. Lifecycle Inbox alerts use kind `lifecycle`. Run on demand with `bin/rails runner ProjectLifecycleSweepJob.perform_now`.
 

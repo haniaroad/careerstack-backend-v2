@@ -41,6 +41,25 @@ module UpgradeRequests
           staff_inbox: STAFF_INBOX
         }.to_json
       )
+
+      payload = Notifications::Hook.org_payload(@organization)
+      Notifications::Hook.emit(
+        event_key: "upgrade_request_received",
+        actor: nil,
+        recipients: [ @admin ],
+        source: request,
+        organization: @organization,
+        payload: payload
+      )
+      Notifications::Hook.emit(
+        event_key: "upgrade_request_received",
+        actor: @admin,
+        recipients: [ { email: Notifications::Catalog::STAFF_INBOX } ],
+        source: request,
+        organization: @organization,
+        payload: payload
+      )
+
       request
     end
 

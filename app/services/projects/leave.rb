@@ -40,6 +40,15 @@ module Projects
 
         Tasks::UnassignMember.call(project: @project, user: @user)
         membership
+      end.tap do
+        Notifications::Hook.emit(
+          event_key: "participant_left",
+          actor: @user,
+          recipients: [ @project.creator ],
+          source: @project,
+          project: @project,
+          payload: Notifications::Hook.project_payload(@project)
+        )
       end
     end
   end

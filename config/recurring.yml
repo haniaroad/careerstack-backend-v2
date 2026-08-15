@@ -33,3 +33,7 @@ production:
     class: OrganizationOffboardingSweepJob
     queue: default
     schedule: every day at 5am
+  notifications_digest:
+    class: Notifications::DigestJob
+    queue: mailers
+    schedule: every hour at minute 5

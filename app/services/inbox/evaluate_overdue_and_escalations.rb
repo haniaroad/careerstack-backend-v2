@@ -90,7 +90,9 @@ module Inbox
     end
 
     def create_creator_reminder!(project:, subject:, kind_suffix:, title:, body:)
+      created = false
       InboxAlert.find_or_create_by!(idempotency_key: "reminder:#{kind_suffix}:#{subject.class.name}:#{subject.id}") do |alert|
+        created = true
         alert.workspace = project.workspace
         alert.recipient_user_id = project.creator_id
         alert.audience = InboxAlert::AUDIENCE_USER
@@ -104,6 +106,27 @@ module Inbox
         alert.overdue = true
         alert.organization_id = project.workspace.organization_id
       end
+
+      return unless created
+
+      event_key = reminder_event_key(kind_suffix)
+      return if event_key.nil?
+
+      Notifications::Hook.emit(
+        event_key: event_key,
+        actor: nil,
+        recipients: [ project.creator ],
+        source: subject,
+        project: project,
+        payload: Notifications::Hook.project_payload(project)
+      )
+    end
+
+    def reminder_event_key(kind_suffix)
+      return "application_overdue" if kind_suffix == "application"
+      return "review_reminder" if kind_suffix == "task_review"
+
+      nil
     end
 
     def create_escalation!(project:, subject:, reason:)
@@ -141,6 +164,25 @@ module Inbox
           alert.overdue = true
         end
       end
+
+      recipients =
+        if target == Escalation::TARGET_STAFF
+          [ { email: Notifications::Catalog::STAFF_INBOX } ]
+        elsif workspace.organization.present?
+          Notifications::Hook.organization_staff(workspace.organization)
+        else
+          []
+        end
+
+      Notifications::Hook.emit(
+        event_key: "escalation_created",
+        actor: nil,
+        recipients: recipients,
+        source: escalation,
+        project: project,
+        organization: workspace.organization,
+        payload: Notifications::Hook.project_payload(project, "reason_label" => reason.to_s.humanize)
+      )
 
       escalation
     end

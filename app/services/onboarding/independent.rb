@@ -38,6 +38,14 @@ module Onboarding
         Credits::GrantPersonalTrial.call(user: @user)
       end
 
+      Notifications::Hook.emit(
+        event_key: "welcome",
+        actor: nil,
+        recipients: [ @user ],
+        source: @user,
+        payload: {}
+      )
+
       @user.reload
     end
 

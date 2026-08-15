@@ -8,6 +8,12 @@ Rails.application.routes.draw do
   namespace :api do
     namespace :v1 do
       get "session", to: "sessions#show"
+      get "notifications", to: "notifications#index"
+      get "notifications/unread_count", to: "notifications#unread_count"
+      post "notifications/read_all", to: "notifications#read_all"
+      post "notifications/:id/read", to: "notifications#read"
+      get "notification_preferences", to: "notification_preferences#show"
+      put "notification_preferences", to: "notification_preferences#update"
       get "profiles/me", to: "profiles#me"
       patch "profiles/me", to: "profiles#update_me"
       post "profiles/me/visibility", to: "profiles#visibility"

@@ -37,7 +37,16 @@ module Projects
         )
       end
 
-      { application: @application.reload, membership: membership }
+      { application: @application.reload, membership: membership }.tap do
+        Notifications::Hook.emit(
+          event_key: "application_decision",
+          actor: @user,
+          recipients: [ @application.applicant ],
+          source: @application,
+          project: @application.project,
+          payload: Notifications::Hook.project_payload(@application.project, "decision_label" => "approved")
+        )
+      end
     end
 
     private
