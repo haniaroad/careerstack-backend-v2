@@ -38,6 +38,6 @@ gem "prawn", "~> 2.5"
 gem "prawn-table", "~> 0.2"
 
 # File evidence uploads + AI review extractors
-gem "image_processing", "~> 1.2"
+gem "image_processing", "~> 2.0"
 gem "pdf-reader", "~> 2.12"
 gem "rubyzip", "~> 2.3"
