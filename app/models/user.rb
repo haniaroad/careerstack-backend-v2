@@ -21,6 +21,8 @@ class User < ApplicationRecord
   has_one :stripe_customer, dependent: :destroy
   has_many :credit_purchases, dependent: :restrict_with_exception
   has_many :credit_refund_requests, dependent: :restrict_with_exception
+  has_many :notifications, foreign_key: :recipient_user_id, dependent: :destroy
+  has_many :notification_preferences, dependent: :destroy
 
   belongs_to :personal_workspace, class_name: "Workspace", optional: true
   belongs_to :active_workspace, class_name: "Workspace", optional: true
@@ -30,6 +32,8 @@ class User < ApplicationRecord
   validates :status, inclusion: { in: STATUSES }
   validates :age_status, inclusion: { in: AGE_STATUSES }, allow_nil: true
   validates :onboarding_path, inclusion: { in: ONBOARDING_PATHS }, allow_nil: true
+  validates :timezone, presence: true
+  validate :timezone_must_be_iana
 
   def suspended?
     status == SUSPENDED
@@ -101,5 +105,14 @@ class User < ApplicationRecord
     return active_workspace if active_workspace && member_of_workspace?(active_workspace)
 
     default_workspace
+  end
+
+  private
+
+  def timezone_must_be_iana
+    return if timezone.blank?
+    return if Time.find_zone(timezone)
+
+    errors.add(:timezone, "is not a recognized IANA timezone")
   end
 end

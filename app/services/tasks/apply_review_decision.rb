@@ -32,6 +32,23 @@ module Tasks
           project: @task.project
         )
         Projects::Lifecycle::Evaluate.call(project: @task.project.reload)
+        Notifications::Hook.emit(
+          event_key: "task_approved",
+          actor: nil,
+          recipients: [ @task.assignee ],
+          source: @review,
+          project: @task.project,
+          payload: Notifications::Hook.task_payload(@task)
+        )
+      elsif @review.decision == AiReview::DECISION_CORRECTIONS_REQUESTED
+        Notifications::Hook.emit(
+          event_key: "corrections_requested",
+          actor: nil,
+          recipients: [ @task.assignee ],
+          source: @review,
+          project: @task.project,
+          payload: Notifications::Hook.task_payload(@task)
+        )
       end
 
       @task.reload

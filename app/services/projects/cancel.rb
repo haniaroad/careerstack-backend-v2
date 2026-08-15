@@ -42,6 +42,16 @@ module Projects
         )
       end
 
+      recipients = @project.memberships.flat_map { |membership| membership.user }.uniq
+      Notifications::Hook.emit(
+        event_key: "project_cancelled",
+        actor: @user,
+        recipients: recipients,
+        source: @project,
+        project: @project,
+        payload: Notifications::Hook.project_payload(@project)
+      )
+
       @project.reload
     end
 

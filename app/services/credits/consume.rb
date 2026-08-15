@@ -66,12 +66,46 @@ module Credits
           credit_lot: primary_lot,
           related: @related
         )
+      end.tap do |entry|
+        emit_trial_credits_used_up!(entry)
       end
+    rescue InsufficientCredits
+      emit_not_enough_organization_credits!
+      raise
     rescue ActiveRecord::RecordNotUnique, ActiveRecord::RecordInvalid => e
       existing = CreditLedgerEntry.find_by(idempotency_key: @idempotency_key)
       return existing if existing
 
       raise e
+    end
+
+    private
+
+    def emit_not_enough_organization_credits!
+      return unless @owner.is_a?(Organization)
+
+      Notifications::Hook.emit(
+        event_key: "not_enough_organization_credits",
+        actor: nil,
+        recipients: Notifications::Hook.organization_staff(@owner),
+        source: Notifications::Hook.named_source("org-credits-insufficient:#{@owner.id}:#{@idempotency_key}"),
+        organization: @owner,
+        payload: Notifications::Hook.org_payload(@owner)
+      )
+    end
+
+    def emit_trial_credits_used_up!(entry)
+      return unless @owner.is_a?(Organization)
+      return unless Balance.remaining(owner: @owner).zero?
+
+      Notifications::Hook.emit(
+        event_key: "trial_credits_used_up",
+        actor: nil,
+        recipients: Notifications::Hook.organization_staff(@owner),
+        source: entry,
+        organization: @owner,
+        payload: Notifications::Hook.org_payload(@owner)
+      )
     end
   end
 end

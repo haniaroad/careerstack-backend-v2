@@ -18,6 +18,13 @@ module Billing
       result = Credits::ReverseUnusedPurchase.call(purchase: purchase, actor_user: @actor_user)
 
       @refund_request.update!(status: "approved", resolved_at: Time.current)
+      Notifications::Hook.emit(
+        event_key: "refund_confirmation",
+        actor: nil,
+        recipients: [ purchase.user ],
+        source: @refund_request,
+        payload: {}
+      )
       { refund_request: @refund_request, reversed: result[:reversed] }
     end
   end

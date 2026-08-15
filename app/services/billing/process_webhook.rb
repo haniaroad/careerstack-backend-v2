@@ -83,6 +83,14 @@ module Billing
         completed_at: Time.current
       )
       purchase.save!
+
+      Notifications::Hook.emit(
+        event_key: "purchase_receipt",
+        actor: nil,
+        recipients: [ user ],
+        source: purchase,
+        payload: {}
+      )
     end
 
     def mark_purchase_status!(session_id, status)

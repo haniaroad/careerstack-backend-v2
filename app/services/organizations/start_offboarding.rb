@@ -20,6 +20,7 @@ module Organizations
         offboarding_started_at: started,
         offboarding_ends_on: started.to_date + Organization::OFFBOARDING_DAYS
       )
+      Organizations::EmitOffboardingNotice.call(organization: @organization, days_remaining: Organization::OFFBOARDING_DAYS)
       @organization
     end
   end

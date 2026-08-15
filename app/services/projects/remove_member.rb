@@ -47,6 +47,15 @@ module Projects
 
         Tasks::UnassignMember.call(project: @project, user: @member_user)
         membership
+      end.tap do
+        Notifications::Hook.emit(
+          event_key: "removed_from_project",
+          actor: @actor,
+          recipients: [ @member_user ],
+          source: @project,
+          project: @project,
+          payload: Notifications::Hook.project_payload(@project)
+        )
       end
     end
 

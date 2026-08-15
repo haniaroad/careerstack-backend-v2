@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_08_14_190000) do
+ActiveRecord::Schema[8.0].define(version: 2026_08_14_210000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -136,7 +136,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_14_190000) do
     t.index ["status"], name: "index_ai_reviews_on_status"
     t.index ["task_id", "status"], name: "index_ai_reviews_on_task_id_and_status"
     t.index ["task_id"], name: "index_ai_reviews_on_task_id"
-    t.index ["task_id"], name: "index_ai_reviews_one_active_per_task", unique: true, where: "((status)::text = ANY ((ARRAY['pending'::character varying, 'running'::character varying])::text[]))"
+    t.index ["task_id"], name: "index_ai_reviews_one_active_per_task", unique: true, where: "((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('running'::character varying)::text]))"
     t.index ["task_submission_id"], name: "index_ai_reviews_on_task_submission_id"
     t.index ["user_id", "created_at"], name: "index_ai_reviews_on_user_id_and_created_at"
     t.index ["user_id"], name: "index_ai_reviews_on_user_id"
@@ -225,6 +225,15 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_14_190000) do
     t.index ["user_id"], name: "index_credit_refund_requests_on_user_id"
   end
 
+  create_table "email_suppressions", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.string "address", null: false
+    t.string "reason", null: false
+    t.datetime "occurred_at", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["address"], name: "index_email_suppressions_on_address", unique: true
+  end
+
   create_table "escalations", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.uuid "workspace_id", null: false
     t.uuid "project_id", null: false
@@ -286,6 +295,42 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_14_190000) do
     t.index ["organization_id"], name: "index_invitations_on_organization_id"
     t.index ["program_id"], name: "index_invitations_on_program_id"
     t.index ["token_digest"], name: "index_invitations_on_token_digest", unique: true
+  end
+
+  create_table "notification_preferences", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "user_id", null: false
+    t.string "category", null: false
+    t.boolean "email_enabled", default: true, null: false
+    t.string "digest_cadence"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id", "category"], name: "index_notification_preferences_on_user_id_and_category", unique: true
+  end
+
+  create_table "notifications", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "recipient_user_id"
+    t.string "recipient_email", null: false
+    t.string "event_key", null: false
+    t.string "tier", null: false
+    t.string "source_type", null: false
+    t.uuid "source_id", null: false
+    t.uuid "project_id"
+    t.uuid "organization_id"
+    t.uuid "actor_id"
+    t.jsonb "payload", default: {}, null: false
+    t.datetime "read_at"
+    t.string "email_status", default: "pending", null: false
+    t.string "email_skip_reason"
+    t.string "coalesce_key"
+    t.datetime "sent_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["coalesce_key"], name: "index_notifications_on_coalesce_key"
+    t.index ["created_at"], name: "index_notifications_on_created_at"
+    t.index ["email_status"], name: "index_notifications_on_email_status"
+    t.index ["recipient_email", "event_key", "source_type", "source_id"], name: "index_notifications_email_idempotency", unique: true, where: "(recipient_user_id IS NULL)"
+    t.index ["recipient_user_id", "event_key", "source_type", "source_id"], name: "index_notifications_user_idempotency", unique: true, where: "(recipient_user_id IS NOT NULL)"
+    t.index ["recipient_user_id"], name: "index_notifications_on_recipient_user_id"
   end
 
   create_table "organization_memberships", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -663,6 +708,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_14_190000) do
     t.boolean "organization_trial_granted", default: false, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "timezone", default: "UTC", null: false
     t.index ["email"], name: "index_users_on_email", unique: true
     t.index ["firebase_uid"], name: "index_users_on_firebase_uid", unique: true
   end
@@ -707,6 +753,11 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_14_190000) do
   add_foreign_key "invitations", "programs"
   add_foreign_key "invitations", "users", column: "accepted_by_user_id"
   add_foreign_key "invitations", "users", column: "created_by_user_id"
+  add_foreign_key "notification_preferences", "users"
+  add_foreign_key "notifications", "organizations"
+  add_foreign_key "notifications", "projects"
+  add_foreign_key "notifications", "users", column: "actor_id"
+  add_foreign_key "notifications", "users", column: "recipient_user_id"
   add_foreign_key "organization_memberships", "organizations"
   add_foreign_key "organization_memberships", "programs"
   add_foreign_key "organization_memberships", "programs", column: "program_filter_program_id"

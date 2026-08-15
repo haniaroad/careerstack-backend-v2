@@ -60,5 +60,13 @@ class AgeUpDetectionJob < ApplicationJob
       Workspaces::EnsurePersonal.call(user: user)
       Credits::GrantPersonalTrial.call(user: user)
     end
+
+    Notifications::Hook.emit(
+      event_key: "age_up_visibility_review",
+      actor: nil,
+      recipients: [ user ],
+      source: user,
+      payload: {}
+    )
   end
 end

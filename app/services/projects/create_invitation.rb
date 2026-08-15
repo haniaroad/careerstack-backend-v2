@@ -35,7 +35,16 @@ module Projects
         invitee: @invitee,
         requested_role: @requested_role.to_s.strip,
         status: ProjectInvitation::STATUS_PENDING
-      )
+      ).tap do |invitation|
+        Notifications::Hook.emit(
+          event_key: "project_invitation",
+          actor: @inviter,
+          recipients: [ @invitee ],
+          source: invitation,
+          project: @project,
+          payload: Notifications::Hook.project_payload(@project)
+        )
+      end
     end
   end
 end

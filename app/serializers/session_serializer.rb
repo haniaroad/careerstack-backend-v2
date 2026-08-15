@@ -58,7 +58,8 @@ class SessionSerializer
       terms_accepted_at: @user.terms_accepted_at,
       personal_trial_granted: @user.personal_trial_granted,
       organization_trial_granted: @user.organization_trial_granted,
-      public_identity_visible: @user.public_identity_visible?
+      public_identity_visible: @user.public_identity_visible?,
+      timezone: @user.timezone
     }
   end
 

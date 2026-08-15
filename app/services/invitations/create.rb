@@ -53,7 +53,17 @@ module Invitations
         expires_at: resolve_expiry
       )
 
-      Result.new(invitation: invitation, raw_token: raw_token)
+      Result.new(invitation: invitation, raw_token: raw_token).tap do |result|
+        invitee = User.find_by(email: invitation.email) if invitation.email.present?
+        Notifications::Hook.emit(
+          event_key: "organization_invitation",
+          actor: @actor,
+          recipients: [ { user: invitee, email: invitation.email } ],
+          source: invitation,
+          organization: organization,
+          payload: Notifications::Hook.org_payload(organization, "token" => raw_token)
+        )
+      end
     end
 
     private

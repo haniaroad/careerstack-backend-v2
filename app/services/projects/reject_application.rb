@@ -24,6 +24,14 @@ module Projects
         reviewed_by: @user,
         reviewed_at: Time.current
       )
+      Notifications::Hook.emit(
+        event_key: "application_decision",
+        actor: @user,
+        recipients: [ @application.applicant ],
+        source: @application,
+        project: project,
+        payload: Notifications::Hook.project_payload(project, "decision_label" => "not selected")
+      )
       @application
     end
   end

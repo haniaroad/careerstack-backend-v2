@@ -90,7 +90,16 @@ module Tasks
         )
       end
 
-      { submission: submission.reload, review: review, task: @task.reload }
+      { submission: submission.reload, review: review, task: @task.reload }.tap do |result|
+        Notifications::Hook.emit(
+          event_key: "submission_received",
+          actor: @user,
+          recipients: [ @task.project.creator ],
+          source: result[:submission],
+          project: @task.project,
+          payload: Notifications::Hook.task_payload(@task)
+        )
+      end
     end
 
     private
