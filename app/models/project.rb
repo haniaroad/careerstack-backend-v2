@@ -55,6 +55,7 @@ class Project < ApplicationRecord
   has_many :tasks, dependent: :destroy
   has_many :applications, class_name: "ProjectApplication", dependent: :destroy
   has_many :invitations, class_name: "ProjectInvitation", dependent: :destroy
+  has_many :peer_reviews, dependent: :destroy
 
   validates :title, presence: true, length: { maximum: 120 }
   validates :summary, length: { maximum: 2000 }, allow_nil: true

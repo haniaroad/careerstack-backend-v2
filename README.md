@@ -107,7 +107,7 @@ The header **bell is the notification center**, not Inbox. Inbox remains the ope
 
 Solid Queue is installed with a separate queue database connection and schema. **No worker process is deployed yet** — local Compose and Cloud Run currently rely on inline escapes (`AI_INLINE_JOBS`, `REPORTS_INLINE_JOBS`, `EMAIL_INLINE_JOBS`). Staging's durable path is a Solid Queue worker including the `mailers` queue. Locally you can run `bin/jobs` when needed.
 
-`Notifications::DigestJob` is registered hourly in production on `mailers`. It produces due-task, pending-invitation, and weekly activity rows, then delivers digest-tier mail only between 08:00 and 20:00 in the recipient's IANA timezone (`users.timezone`). Empty digests are never sent. Run on demand with `bin/rails runner Notifications::DigestJob.perform_now`. Until a worker is deployed, set `EMAIL_INLINE_JOBS=true` so non-coalesced mail runs in-process (coalesced events stay scheduled for 10 minutes and need an explicit deliver or a worker).
+`Notifications::DigestJob` is registered hourly in production on `mailers`. It produces due-task, pending-invitation, peer-review request reminders, and weekly activity rows, then delivers digest-tier mail only between 08:00 and 20:00 in the recipient's IANA timezone (`users.timezone`). Empty digests are never sent. Run on demand with `bin/rails runner Notifications::DigestJob.perform_now`. Until a worker is deployed, set `EMAIL_INLINE_JOBS=true` so non-coalesced mail runs in-process (coalesced events stay scheduled for 10 minutes and need an explicit deliver or a worker).
 
 `OrganizationOffboardingSweepJob` is registered daily in production (05:00). It disables organizations whose offboarding window has ended and clears that org as the active workspace. Run on demand with `bin/rails runner OrganizationOffboardingSweepJob.perform_now`.
 
@@ -136,6 +136,18 @@ Team projects support `application`, `instant`, and `invite_only` joining modes 
 - `PATCH /api/v1/tasks/:task_id/assignment`
 
 Creator team task review and Inbox Approvals are live. Project completion, grace, and expiration close the timebox after the preferred end date.
+
+## Peer reviews
+
+Optional teammate confirmation after a **completed team** project. Slots are created at completion for active members (including the creator) when at least two remain. Solo projects and departed members get no slots. Submit is reviewer-only, requires a 1–5 rating and comment, and is immutable.
+
+Key routes:
+
+- `GET /api/v1/peer_reviews` — the actor's slots in the **active workspace**
+- `POST /api/v1/peer_reviews/:id/submit` — `{ rating, comment }`
+- `POST /api/v1/peer_reviews/:id/reports` — authenticated readers other than the author; hide remains **platform admin** (`hidden_at` is unused in product UI)
+
+Received completed (not hidden) reviews are included on by-slug and public profile DTOs as `peer_reviews`. If the reviewer or reviewee is a minor, the label is **Verified project teammate**. Public DTOs omit rating. Historical completed teams are backfilled without notifications.
 
 ## Profiles
 

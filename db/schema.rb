@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_08_14_210000) do
+ActiveRecord::Schema[8.0].define(version: 2026_09_05_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -136,7 +136,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_14_210000) do
     t.index ["status"], name: "index_ai_reviews_on_status"
     t.index ["task_id", "status"], name: "index_ai_reviews_on_task_id_and_status"
     t.index ["task_id"], name: "index_ai_reviews_on_task_id"
-    t.index ["task_id"], name: "index_ai_reviews_one_active_per_task", unique: true, where: "((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('running'::character varying)::text]))"
+    t.index ["task_id"], name: "index_ai_reviews_one_active_per_task", unique: true, where: "((status)::text = ANY ((ARRAY['pending'::character varying, 'running'::character varying])::text[]))"
     t.index ["task_submission_id"], name: "index_ai_reviews_on_task_submission_id"
     t.index ["user_id", "created_at"], name: "index_ai_reviews_on_user_id_and_created_at"
     t.index ["user_id"], name: "index_ai_reviews_on_user_id"
@@ -428,6 +428,39 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_14_210000) do
     t.index ["primary_goal_term_id"], name: "index_organizations_on_primary_goal_term_id"
     t.index ["structure_term_id"], name: "index_organizations_on_structure_term_id"
     t.index ["workspace_status"], name: "index_organizations_on_workspace_status"
+  end
+
+  create_table "peer_review_reports", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "peer_review_id", null: false
+    t.uuid "reporter_id", null: false
+    t.string "report_type", null: false
+    t.string "reason_category", null: false
+    t.text "details"
+    t.string "status", default: "open", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["peer_review_id", "reporter_id"], name: "index_peer_review_reports_open_per_reporter", unique: true, where: "((status)::text = 'open'::text)"
+    t.index ["peer_review_id"], name: "index_peer_review_reports_on_peer_review_id"
+    t.index ["reporter_id"], name: "index_peer_review_reports_on_reporter_id"
+  end
+
+  create_table "peer_reviews", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "project_id", null: false
+    t.uuid "reviewer_id", null: false
+    t.uuid "reviewee_id", null: false
+    t.string "status", default: "available", null: false
+    t.integer "rating"
+    t.text "comment"
+    t.datetime "submitted_at"
+    t.datetime "hidden_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["project_id", "reviewer_id", "reviewee_id"], name: "index_peer_reviews_on_project_reviewer_reviewee", unique: true
+    t.index ["project_id"], name: "index_peer_reviews_on_project_id"
+    t.index ["reviewee_id", "status"], name: "index_peer_reviews_on_reviewee_id_and_status"
+    t.index ["reviewee_id"], name: "index_peer_reviews_on_reviewee_id"
+    t.index ["reviewer_id", "status"], name: "index_peer_reviews_on_reviewer_id_and_status"
+    t.index ["reviewer_id"], name: "index_peer_reviews_on_reviewer_id"
   end
 
   create_table "profiles", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -773,6 +806,11 @@ ActiveRecord::Schema[8.0].define(version: 2026_08_14_210000) do
   add_foreign_key "organization_upgrade_requests", "users", column: "requesting_user_id"
   add_foreign_key "organizations", "taxonomy_terms", column: "primary_goal_term_id"
   add_foreign_key "organizations", "taxonomy_terms", column: "structure_term_id"
+  add_foreign_key "peer_review_reports", "peer_reviews"
+  add_foreign_key "peer_review_reports", "users", column: "reporter_id"
+  add_foreign_key "peer_reviews", "projects"
+  add_foreign_key "peer_reviews", "users", column: "reviewee_id"
+  add_foreign_key "peer_reviews", "users", column: "reviewer_id"
   add_foreign_key "profiles", "taxonomy_terms", column: "current_role_term_id"
   add_foreign_key "profiles", "taxonomy_terms", column: "target_role_term_id"
   add_foreign_key "profiles", "users"

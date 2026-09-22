@@ -86,6 +86,7 @@ module Projects
           body: "#{@project.title} is complete — all tasks were approved.",
           urgency: InboxAlert::URGENCY_MEDIUM
         )
+        PeerReviews::OpenSlots.call(project: @project, emit: true)
       end
 
       def enter_grace!

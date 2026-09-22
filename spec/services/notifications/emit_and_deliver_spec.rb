@@ -95,7 +95,7 @@ RSpec.describe "Notifications emit and delivery" do
     user = create_onboarded_adult(email: "no-peer@example.com")
     expect {
       Notifications::Emit.call(
-        event_key: "peer_review_received",
+        event_key: "unread_project_messages",
         actor: nil,
         recipients: [ user ],
         source: user,

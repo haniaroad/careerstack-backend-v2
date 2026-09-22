@@ -45,6 +45,7 @@ class ProfileSerializer
       stats: Profiles::Stats.call(user: @user),
       evidence: Profiles::Evidence.call(user: @user),
       projects: Profiles::ProjectSummaries.call(user: @user, public_view: @public_view),
+      peer_reviews: peer_reviews_json,
       links: links_json
     }
   end
@@ -70,5 +71,11 @@ class ProfileSerializer
       { provider: "linkedin", url: @profile.linkedin_url },
       { provider: "portfolio", url: @profile.portfolio_url }
     ].select { |row| row[:url].present? }
+  end
+
+  def peer_reviews_json
+    PeerReview.received_by(@user).includes(:project, reviewer: :profile, reviewee: :profile).order(submitted_at: :desc).map do |review|
+      PeerReviewSerializer.public_card(review, viewer: @viewer, public_view: @public_view)
+    end
   end
 end

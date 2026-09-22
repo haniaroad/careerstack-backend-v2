@@ -17,6 +17,7 @@ module Notifications
     def call
       produce_due_reminders
       produce_pending_invitation_reminders
+      produce_peer_review_reminders
       produce_activity_summaries
       deliver_due_digests
     end
@@ -62,6 +63,10 @@ module Notifications
           payload: { "organization_name" => invitation.organization.name }
         )
       end
+    end
+
+    def produce_peer_review_reminders
+      PeerReviews::Reminder.call
     end
 
     def produce_activity_summaries
