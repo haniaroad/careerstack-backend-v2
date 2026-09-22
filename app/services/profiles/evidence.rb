@@ -50,7 +50,9 @@ module Profiles
           ).exists?
 
           level =
-            if ai
+            if PeerReview.completed.visible.exists?(project_id: project.id, reviewee_id: @user.id)
+              "peer_confirmed"
+            elsif ai
               "ai_reviewed"
             elsif creator
               "human_reviewed"

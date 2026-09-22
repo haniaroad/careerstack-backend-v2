@@ -43,6 +43,7 @@ module Profiles
       when Project then subject
       when Task then subject.project
       when TaskSubmission then subject.task.project
+      when PeerReview then subject.project
       else nil
       end
     end

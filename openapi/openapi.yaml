@@ -1087,6 +1087,124 @@ paths:
           $ref: "#/components/responses/Unauthenticated"
         "404":
           $ref: "#/components/responses/NotFound"
+  /api/v1/peer_reviews:
+    get:
+      operationId: listPeerReviews
+      summary: List the actor's peer review slots in the active workspace
+      description: |
+        Returns directed review slots the caller authors. Other users' available
+        slots are never included. Unauthenticated requests are rejected.
+      tags: [Peer reviews]
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [available, pending, completed]
+      responses:
+        "200":
+          description: Peer review slots
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [peer_reviews]
+                properties:
+                  peer_reviews:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/PeerReviewSlot"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+  /api/v1/peer_reviews/{id}/submit:
+    post:
+      operationId: submitPeerReview
+      summary: Submit an optional 1–5 rating and comment for a completed team project
+      description: |
+        Reviewer-only. The project must be completed. Submits are immutable.
+        Hide remains a platform-admin action and is not exposed here.
+      tags: [Peer reviews]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rating, comment]
+              properties:
+                rating:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                comment:
+                  type: string
+      responses:
+        "200":
+          description: Submitted slot
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [peer_review]
+                properties:
+                  peer_review:
+                    $ref: "#/components/schemas/PeerReviewSlot"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+  /api/v1/peer_reviews/{id}/reports:
+    post:
+      operationId: createPeerReviewReport
+      summary: Report a readable completed peer review
+      description: Authenticated readers other than the author. Does not hide the review.
+      tags: [Peer reviews]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [report_type, reason_category]
+              properties:
+                report_type:
+                  type: string
+                  enum: [inaccurate, inappropriate, harassment, other]
+                reason_category:
+                  type: string
+                  enum:
+                    - wrong_decision
+                    - missing_context
+                    - unsafe_or_biased
+                    - unclear_feedback
+                    - harassment
+                    - other
+                details:
+                  type: string
+      responses:
+        "201":
+          description: Report created
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
   /api/v1/public/projects/{slug}:
     get:
       operationId: getPublicProjectBySlug
@@ -1966,7 +2084,7 @@ components:
           enum: [public_adult, restricted]
     ProfileDetail:
       type: object
-      required: [user_id, visibility, details, stats, evidence, projects, links]
+      required: [user_id, visibility, details, stats, evidence, projects, peer_reviews, links]
       properties:
         user_id:
           type: string
@@ -1991,6 +2109,10 @@ components:
           items:
             type: object
             additionalProperties: true
+        peer_reviews:
+          type: array
+          items:
+            $ref: "#/components/schemas/PeerReviewPublicCard"
         links:
           type: array
           items:
@@ -2001,6 +2123,76 @@ components:
                 type: string
               url:
                 type: string
+    PeerReviewSlot:
+      type: object
+      required:
+        [
+          id,
+          project_id,
+          project_title,
+          from_user_id,
+          to_user_id,
+          status,
+          is_anonymized,
+        ]
+      properties:
+        id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        project_title:
+          type: string
+        from_user_id:
+          type: string
+          format: uuid
+        from_user_name:
+          type: string
+          nullable: true
+        to_user_id:
+          type: string
+          format: uuid
+        to_user_name:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [available, pending, completed]
+        is_anonymized:
+          type: boolean
+        summary:
+          type: string
+        rating:
+          type: integer
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+    PeerReviewPublicCard:
+      type: object
+      required: [id, reviewer_display_name, reviewer_is_anonymized, project_title, body]
+      properties:
+        id:
+          type: string
+          format: uuid
+        reviewer_display_name:
+          type: string
+          description: Display name or "Verified project teammate" when either party is a minor
+        reviewer_is_anonymized:
+          type: boolean
+        project_title:
+          type: string
+        body:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+          nullable: true
+        rating:
+          type: integer
+          description: Included only for the reviewee's in-app own received list; omitted on public DTOs
     ProfileUpdateRequest:
       type: object
       properties:

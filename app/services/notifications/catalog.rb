@@ -65,8 +65,8 @@ module Notifications
       "account_security_change" => { tier: "mandatory", category: "account", emit: false },
       "suspension" => { tier: "mandatory", category: "account", emit: false },
       "policy_change" => { tier: "mandatory", category: "account", emit: false },
-      "peer_review_received" => { tier: "realtime_config", category: "project_activity", emit: false },
-      "peer_review_request" => { tier: "realtime_config", category: "project_activity", emit: false },
+      "peer_review_received" => { tier: "realtime_config", category: "project_activity", emit: true },
+      "peer_review_request" => { tier: "realtime_config", category: "project_activity", emit: true },
       "unread_project_messages" => { tier: "digest_config", category: "reminders", emit: false }
     }.freeze
 
@@ -280,6 +280,20 @@ module Notifications
         body: "You have an unaccepted invitation waiting.",
         cta: "Open Home",
         path: "/"
+      },
+      "peer_review_received" => {
+        title: "Peer review received",
+        heading: "A teammate reviewed your work",
+        body: "A teammate left a review on %{project_title}.",
+        cta: "Read the review",
+        path: "/profile/%{slug}?tab=peer_reviews"
+      },
+      "peer_review_request" => {
+        title: "Peer review request",
+        heading: "Review your teammates",
+        body: "Reviews are optional and become part of teammates' records.",
+        cta: "Leave reviews",
+        path: "/my-work?tab=peer_reviews"
       }
     }.freeze
 

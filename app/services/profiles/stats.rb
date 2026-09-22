@@ -24,6 +24,7 @@ module Profiles
         ai_approved_tasks: specialized_count(ai_approved_tasks_count),
         creator_reviewed_approved_tasks: specialized_count(creator_reviewed_approved_count),
         average_creator_review_hours: average_creator_review_hours,
+        peer_review_total: specialized_count(peer_review_total),
         activity: activity_sparkline
       }
     end
@@ -104,6 +105,10 @@ module Profiles
       return nil if hours.empty?
 
       (hours.sum / hours.size.to_f).round(1)
+    end
+
+    def peer_review_total
+      PeerReview.received_by(@user).count
     end
 
     def specialized_count(value)

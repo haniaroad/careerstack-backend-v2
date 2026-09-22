@@ -23,6 +23,8 @@ class User < ApplicationRecord
   has_many :credit_refund_requests, dependent: :restrict_with_exception
   has_many :notifications, foreign_key: :recipient_user_id, dependent: :destroy
   has_many :notification_preferences, dependent: :destroy
+  has_many :authored_peer_reviews, class_name: "PeerReview", foreign_key: :reviewer_id, dependent: :destroy
+  has_many :received_peer_reviews, class_name: "PeerReview", foreign_key: :reviewee_id, dependent: :destroy
 
   belongs_to :personal_workspace, class_name: "Workspace", optional: true
   belongs_to :active_workspace, class_name: "Workspace", optional: true
