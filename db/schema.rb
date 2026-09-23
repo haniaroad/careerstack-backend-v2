@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_09_05_120000) do
+ActiveRecord::Schema[8.0].define(version: 2026_09_23_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -485,6 +485,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_05_120000) do
     t.datetime "updated_at", null: false
     t.string "slug", null: false
     t.index ["current_role_term_id"], name: "index_profiles_on_current_role_term_id"
+    t.index ["display_name"], name: "index_profiles_on_display_name"
     t.index ["slug"], name: "index_profiles_on_slug", unique: true
     t.index ["target_role_term_id"], name: "index_profiles_on_target_role_term_id"
     t.index ["user_id"], name: "index_profiles_on_user_id", unique: true
@@ -613,6 +614,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_05_120000) do
     t.index ["creator_id"], name: "index_projects_on_creator_id"
     t.index ["program_id"], name: "index_projects_on_program_id"
     t.index ["slug"], name: "index_projects_on_slug", unique: true
+    t.index ["visibility", "status"], name: "index_projects_on_visibility_and_status"
     t.index ["workspace_id", "status"], name: "index_projects_on_workspace_id_and_status"
     t.index ["workspace_id"], name: "index_projects_on_workspace_id"
   end
@@ -742,6 +744,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_05_120000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "timezone", default: "UTC", null: false
+    t.index ["age_status", "status"], name: "index_users_on_age_status_and_status"
     t.index ["email"], name: "index_users_on_email", unique: true
     t.index ["firebase_uid"], name: "index_users_on_firebase_uid", unique: true
   end

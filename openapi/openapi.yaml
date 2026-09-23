@@ -1087,6 +1087,158 @@ paths:
           $ref: "#/components/responses/Unauthenticated"
         "404":
           $ref: "#/components/responses/NotFound"
+  /api/v1/explore/projects:
+    get:
+      operationId: listExploreProjects
+      summary: List projects the caller may discover in the active workspace
+      description: |
+        Personal workspaces return public projects. Organization workspaces return
+        that organization's projects, including private ones, limited by the active
+        program filter. Draft, cancelled, and archived projects are omitted.
+        Unauthenticated requests are rejected.
+      tags: [Explore]
+      parameters:
+        - { name: q, in: query, schema: { type: string } }
+        - { name: skill, in: query, schema: { type: string } }
+        - { name: role, in: query, schema: { type: string } }
+        - { name: page, in: query, schema: { type: integer } }
+        - { name: per_page, in: query, schema: { type: integer, maximum: 20 } }
+      responses:
+        "200":
+          description: Discoverable projects
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [projects, page, per_page, total_count]
+                properties:
+                  projects:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, title, skills, status, phase]
+                  page: { type: integer }
+                  per_page: { type: integer }
+                  total_count: { type: integer }
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+  /api/v1/explore/people:
+    get:
+      operationId: listExplorePeople
+      summary: List searchable public adults
+      description: |
+        Returns confirmed public adults only. Minors, unknown-age, suspended, and
+        age-up-pending identities are omitted even when filters match. Organization
+        names appear only for a public organization accomplishment.
+      tags: [Explore]
+      parameters:
+        - { name: name, in: query, schema: { type: string } }
+        - { name: skill, in: query, schema: { type: string } }
+        - { name: role, in: query, schema: { type: string } }
+        - { name: experience, in: query, schema: { type: string } }
+        - { name: location, in: query, schema: { type: string } }
+        - { name: organization, in: query, schema: { type: string } }
+        - { name: page, in: query, schema: { type: integer } }
+        - { name: per_page, in: query, schema: { type: integer, maximum: 20 } }
+      responses:
+        "200":
+          description: Searchable adults
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [people, page, per_page, total_count]
+                properties:
+                  people:
+                    type: array
+                    items:
+                      type: object
+                      required: [user_id, slug, display_name]
+                  page: { type: integer }
+                  per_page: { type: integer }
+                  total_count: { type: integer }
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+  /api/v1/explore/invite_options:
+    get:
+      operationId: listExploreInviteOptions
+      summary: List the caller's eligible invite projects for a person
+      description: |
+        Creator-owned joinable team projects the target may join. `unavailable` is
+        true when the target already has an active participation. Creating the
+        invitation uses the existing project invitation endpoint.
+      tags: [Explore]
+      parameters:
+        - name: user_id
+          in: query
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Eligible projects and availability
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [eligible_projects, unavailable]
+                properties:
+                  eligible_projects:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, title, roles_needed]
+                  unavailable: { type: boolean }
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+  /api/v1/projects/{project_id}/invitations:
+    post:
+      operationId: createProjectInvitation
+      summary: Invite a person to a recruiting role on a creator-owned team project
+      description: |
+        Reused by Explore. The caller must be the project creator. `requested_role`
+        must be one of the project's recruiting roles. An active participation
+        returns `invitee_unavailable` and does not create an invitation. Credits
+        are not consumed until the invitee accepts.
+      tags: [Explore]
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [invitee_id, requested_role]
+              properties:
+                invitee_id: { type: string, format: uuid }
+                requested_role: { type: string }
+      responses:
+        "201":
+          description: Pending project invitation
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [invitation]
+                properties:
+                  invitation:
+                    type: object
+                    required: [id, project_id, invitee_id, requested_role, status]
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Active participation or duplicate pending invitation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
   /api/v1/peer_reviews:
     get:
       operationId: listPeerReviews

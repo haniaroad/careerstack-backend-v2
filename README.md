@@ -137,6 +137,14 @@ Team projects support `application`, `instant`, and `invite_only` joining modes 
 
 Creator team task review and Inbox Approvals are live. Project completion, grace, and expiration close the timebox after the preferred end date.
 
+## Explore
+
+Authenticated Explore replaces the coming-soon stub. Projects is the default tab. Personal workspaces list public projects. An organization workspace lists that organization's projects, including private ones, and honors the program filter. People lists confirmed public adults only — minors, unknown-age, suspended, and age-up-pending users are omitted. Invites reuse `POST /api/v1/projects/:project_id/invitations` (`requested_role`); an active participation returns `invitee_unavailable` and does not create an invitation.
+
+- `GET /api/v1/explore/projects`
+- `GET /api/v1/explore/people`
+- `GET /api/v1/explore/invite_options?user_id=`
+
 ## Peer reviews
 
 Optional teammate confirmation after a **completed team** project. Slots are created at completion for active members (including the creator) when at least two remain. Solo projects and departed members get no slots. Submit is reviewer-only, requires a 1–5 rating and comment, and is immutable.
