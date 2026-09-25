@@ -145,6 +145,15 @@ Authenticated Explore replaces the coming-soon stub. Projects is the default tab
 - `GET /api/v1/explore/people`
 - `GET /api/v1/explore/invite_options?user_id=`
 
+## Project messaging
+
+Team projects expose one membership-gated message thread for the creator and active participants. Solo projects have no thread until conversion. Departed members lose access; history remains for remaining members. Unread project-message notifications use digest tier `unread_project_messages` and never quote message bodies.
+
+- `GET /api/v1/projects/:project_id/messages`
+- `POST /api/v1/projects/:project_id/messages`
+- `POST /api/v1/projects/:project_id/messages/read`
+- `POST /api/v1/project_messages/:message_id/reports`
+
 ## Peer reviews
 
 Optional teammate confirmation after a **completed team** project. Slots are created at completion for active members (including the creator) when at least two remain. Solo projects and departed members get no slots. Submit is reviewer-only, requires a 1–5 rating and comment, and is immutable.

@@ -1239,6 +1239,136 @@ paths:
                 $ref: "#/components/schemas/ErrorEnvelope"
         "422":
           $ref: "#/components/responses/UnprocessableEntity"
+  /api/v1/projects/{project_id}/messages:
+    get:
+      operationId: listProjectMessages
+      summary: List the membership-gated project message thread
+      description: |
+        Creator and active participants only. Solo projects and non-members receive
+        404 without disclosing bodies.
+      tags: [Project messaging]
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Chronological messages and unread state
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [messages, unread]
+                properties:
+                  messages:
+                    type: array
+                    items:
+                      type: object
+                      required: [id, author_id, body, created_at]
+                  unread: { type: boolean }
+                  messages_last_read_at: { type: string, format: date-time, nullable: true }
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      operationId: createProjectMessage
+      summary: Post a plain-text message to a team project thread
+      tags: [Project messaging]
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body: { type: string, maxLength: 2000 }
+      responses:
+        "201":
+          description: Created message
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [message]
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+  /api/v1/projects/{project_id}/messages/read:
+    post:
+      operationId: markProjectMessagesRead
+      summary: Mark the project message thread read for the caller
+      tags: [Project messaging]
+      parameters:
+        - name: project_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Unread cleared for the caller
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [unread]
+                properties:
+                  unread: { type: boolean }
+                  messages_last_read_at: { type: string, format: date-time, nullable: true }
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/v1/project_messages/{message_id}/reports:
+    post:
+      operationId: createProjectMessageReport
+      summary: Report a project message
+      description: |
+        Reporter must be an active thread member other than the author. Platform-admin
+        removal remains out of scope.
+      tags: [Project messaging]
+      parameters:
+        - name: message_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [report_type, reason_category]
+              properties:
+                report_type: { type: string }
+                reason_category: { type: string }
+                details: { type: string }
+      responses:
+        "201":
+          description: Report created
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [report]
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
   /api/v1/peer_reviews:
     get:
       operationId: listPeerReviews

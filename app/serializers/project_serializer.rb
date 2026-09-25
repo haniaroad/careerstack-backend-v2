@@ -60,6 +60,10 @@ class ProjectSerializer
       payload[:viewer_can_join] = @project.joinable?
     end
 
+    if @viewer && @project.team? && member_viewer?
+      payload[:messages_unread] = messages_unread?
+    end
+
     payload
   end
 
@@ -77,6 +81,17 @@ class ProjectSerializer
     return false unless @viewer
 
     @project.memberships.active.exists?(user_id: @viewer.id)
+  end
+
+  def messages_unread?
+    membership = @project.memberships.active.find_by(user_id: @viewer.id)
+    return false if membership.nil?
+
+    latest = @project.messages.maximum(:created_at)
+    return false if latest.nil?
+    return true if membership.messages_last_read_at.nil?
+
+    membership.messages_last_read_at < latest
   end
 
   def membership_json(membership)
