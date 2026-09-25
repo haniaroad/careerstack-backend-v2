@@ -29,7 +29,7 @@ module Notifications
       }
     }.freeze
 
-    COALESCABLE = %w[task_assigned task_approved submission_received].freeze
+    COALESCABLE = %w[task_assigned task_approved submission_received unread_project_messages].freeze
 
     EVENTS = {
       "organization_invitation" => { tier: "mandatory", category: "account", emit: true },
@@ -67,7 +67,7 @@ module Notifications
       "policy_change" => { tier: "mandatory", category: "account", emit: false },
       "peer_review_received" => { tier: "realtime_config", category: "project_activity", emit: true },
       "peer_review_request" => { tier: "realtime_config", category: "project_activity", emit: true },
-      "unread_project_messages" => { tier: "digest_config", category: "reminders", emit: false }
+      "unread_project_messages" => { tier: "digest_config", category: "reminders", emit: true }
     }.freeze
 
     COPY = {
@@ -294,6 +294,13 @@ module Notifications
         body: "Reviews are optional and become part of teammates' records.",
         cta: "Leave reviews",
         path: "/my-work?tab=peer_reviews"
+      },
+      "unread_project_messages" => {
+        title: "Unread project messages",
+        heading: "%{n} new messages in %{project_title}",
+        body: "From %{names}. Open the project to read them in CareerStack.",
+        cta: "Open project",
+        path: "/projects/%{project_id}"
       }
     }.freeze
 

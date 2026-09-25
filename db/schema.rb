@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_09_23_120000) do
+ActiveRecord::Schema[8.0].define(version: 2026_09_23_180000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -575,10 +575,36 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_23_120000) do
     t.datetime "updated_at", null: false
     t.string "participant_role"
     t.string "join_source"
+    t.datetime "messages_last_read_at"
     t.index ["project_id", "user_id"], name: "index_project_memberships_on_project_id_and_user_id", unique: true
     t.index ["project_id"], name: "index_project_memberships_on_project_id"
     t.index ["user_id", "status"], name: "index_project_memberships_on_user_id_and_status"
     t.index ["user_id"], name: "index_project_memberships_on_user_id"
+  end
+
+  create_table "project_message_reports", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "project_message_id", null: false
+    t.uuid "reporter_id", null: false
+    t.string "report_type", null: false
+    t.string "reason_category", null: false
+    t.text "details"
+    t.string "status", default: "open", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["project_message_id", "reporter_id"], name: "index_project_message_reports_open_per_reporter", unique: true, where: "((status)::text = 'open'::text)"
+    t.index ["project_message_id"], name: "index_project_message_reports_on_project_message_id"
+    t.index ["reporter_id"], name: "index_project_message_reports_on_reporter_id"
+  end
+
+  create_table "project_messages", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "project_id", null: false
+    t.uuid "author_id", null: false
+    t.text "body", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["author_id"], name: "index_project_messages_on_author_id"
+    t.index ["project_id", "created_at"], name: "index_project_messages_on_project_id_and_created_at"
+    t.index ["project_id"], name: "index_project_messages_on_project_id"
   end
 
   create_table "projects", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -832,6 +858,10 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_23_120000) do
   add_foreign_key "project_membership_events", "users", column: "actor_user_id"
   add_foreign_key "project_memberships", "projects"
   add_foreign_key "project_memberships", "users"
+  add_foreign_key "project_message_reports", "project_messages"
+  add_foreign_key "project_message_reports", "users", column: "reporter_id"
+  add_foreign_key "project_messages", "projects"
+  add_foreign_key "project_messages", "users", column: "author_id"
   add_foreign_key "projects", "programs"
   add_foreign_key "projects", "users", column: "creator_id"
   add_foreign_key "projects", "workspaces"

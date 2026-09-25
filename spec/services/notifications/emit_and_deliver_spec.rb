@@ -91,17 +91,39 @@ RSpec.describe "Notifications emit and delivery" do
     expect(reminders.digest_cadence).to eq("daily")
   end
 
-  it "does not emit registered but inactive catalog events" do
-    user = create_onboarded_adult(email: "no-peer@example.com")
+  it "emits unread project message digest events for other thread members" do
+    author = create_onboarded_adult(email: "msg-author-#{SecureRandom.hex(2)}@example.com")
+    reader = create_onboarded_adult(email: "msg-reader-#{SecureRandom.hex(2)}@example.com")
+    project = Project.create!(
+      workspace: author.personal_workspace,
+      creator: author,
+      title: "Thread",
+      mode: Project::MODE_TEAM,
+      status: Project::STATUS_ACTIVE,
+      joining_mode: Project::JOINING_INSTANT,
+      capacity: 3,
+      roles_needed: [ "Designer" ],
+      skills: [ "Facilitation" ],
+      ends_on: Date.current + 30
+    )
+    ProjectMembership.create!(project: project, user: author, role: ProjectMembership::ROLE_CREATOR, status: ProjectMembership::STATUS_ACTIVE)
+    ProjectMembership.create!(
+      project: project,
+      user: reader,
+      role: ProjectMembership::ROLE_PARTICIPANT,
+      status: ProjectMembership::STATUS_ACTIVE,
+      participant_role: "Designer",
+      join_source: ProjectMembership::JOIN_SOURCE_INSTANT
+    )
+    message = ProjectMessage.create!(project: project, author: author, body: "Secret body text")
+
     expect {
-      Notifications::Emit.call(
-        event_key: "unread_project_messages",
-        actor: nil,
-        recipients: [ user ],
-        source: user,
-        payload: {}
-      )
-    }.not_to change(Notification, :count)
+      ProjectMessages::NotifyUnread.call(message: message)
+    }.to change { Notification.where(event_key: "unread_project_messages", recipient_user: reader).count }.by(1)
+
+    note = Notification.find_by!(event_key: "unread_project_messages", recipient_user: reader)
+    expect(note.payload["body"]).not_to include("Secret body text")
+    expect(Notification.where(event_key: "unread_project_messages", recipient_user: author)).to be_empty
   end
 
   it "never notifies the actor of their own action" do

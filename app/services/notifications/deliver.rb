@@ -33,6 +33,10 @@ module Notifications
           finalize(siblings, status: "skipped", reason: "in_app_seen")
           return
         end
+        if skip_thread_already_read?(target)
+          finalize(siblings, status: "skipped", reason: "thread_read")
+          return
+        end
       end
 
       rendered = TransactionalMail::Renderer.call(notification: target, items: siblings)
@@ -85,6 +89,17 @@ module Notifications
       return false if notification.read_at.blank?
 
       notification.read_at <= notification.created_at + SEEN_WINDOW
+    end
+
+    def skip_thread_already_read?(notification)
+      return false unless notification.event_key == "unread_project_messages"
+      return false if notification.recipient_user.nil? || notification.project.nil?
+
+      membership = notification.project.memberships.active.find_by(user_id: notification.recipient_user_id)
+      return true if membership.nil?
+      return false if membership.messages_last_read_at.nil?
+
+      membership.messages_last_read_at >= notification.created_at
     end
 
     def staff_reply_to?(notification)
