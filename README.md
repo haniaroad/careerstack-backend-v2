@@ -145,6 +145,14 @@ Authenticated Explore replaces the coming-soon stub. Projects is the default tab
 - `GET /api/v1/explore/people`
 - `GET /api/v1/explore/invite_options?user_id=`
 
+## First-run tips
+
+Authenticated Home, My Work, Inbox, and Profile each show at most one inline tip until the user dismisses it. Dismissal is per user, not per workspace. Own Profile Settings **Replay tips** restores that user's dismissed tips. Minors, unknown-age users, and anyone ineligible for a Personal workspace, free credit, or public identity receive copy that does not mention the benefit they cannot use. Explore, organization administration, billing, and public routes do not show tips. No Mixpanel event is recorded for tips.
+
+- `GET /api/v1/first_run_tips?destination=home|my_work|inbox|profile`
+- `POST /api/v1/first_run_tips/:key/dismiss`
+- `POST /api/v1/first_run_tips/replay`
+
 ## Project messaging
 
 Team projects expose one membership-gated message thread for the creator and active participants. Solo projects have no thread until conversion. Departed members lose access; history remains for remaining members. Unread project-message notifications use digest tier `unread_project_messages` and never quote message bodies.
