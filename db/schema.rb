@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_09_23_180000) do
+ActiveRecord::Schema[8.0].define(version: 2026_09_26_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -136,7 +136,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_23_180000) do
     t.index ["status"], name: "index_ai_reviews_on_status"
     t.index ["task_id", "status"], name: "index_ai_reviews_on_task_id_and_status"
     t.index ["task_id"], name: "index_ai_reviews_on_task_id"
-    t.index ["task_id"], name: "index_ai_reviews_one_active_per_task", unique: true, where: "((status)::text = ANY ((ARRAY['pending'::character varying, 'running'::character varying])::text[]))"
+    t.index ["task_id"], name: "index_ai_reviews_one_active_per_task", unique: true, where: "((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('running'::character varying)::text]))"
     t.index ["task_submission_id"], name: "index_ai_reviews_on_task_submission_id"
     t.index ["user_id", "created_at"], name: "index_ai_reviews_on_user_id_and_created_at"
     t.index ["user_id"], name: "index_ai_reviews_on_user_id"
@@ -252,6 +252,16 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_23_180000) do
     t.index ["status"], name: "index_escalations_on_status"
     t.index ["subject_type", "subject_id"], name: "index_escalations_on_subject_type_and_subject_id"
     t.index ["workspace_id"], name: "index_escalations_on_workspace_id"
+  end
+
+  create_table "first_run_tip_dismissals", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "user_id", null: false
+    t.string "tip_key", null: false
+    t.datetime "dismissed_at", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id", "tip_key"], name: "index_first_run_tip_dismissals_on_user_id_and_tip_key", unique: true
+    t.index ["user_id"], name: "index_first_run_tip_dismissals_on_user_id"
   end
 
   create_table "inbox_alerts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -807,6 +817,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_23_180000) do
   add_foreign_key "escalations", "organizations"
   add_foreign_key "escalations", "projects"
   add_foreign_key "escalations", "workspaces"
+  add_foreign_key "first_run_tip_dismissals", "users"
   add_foreign_key "inbox_alerts", "organizations"
   add_foreign_key "inbox_alerts", "projects"
   add_foreign_key "inbox_alerts", "users", column: "recipient_user_id"

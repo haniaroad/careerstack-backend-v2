@@ -236,6 +236,86 @@ paths:
           $ref: "#/components/responses/Unauthenticated"
         "422":
           $ref: "#/components/responses/UnprocessableEntity"
+  /api/v1/first_run_tips:
+    get:
+      operationId: getFirstRunTip
+      summary: Eligible first-run tip for one destination
+      description: |
+        Returns at most one undismissed tip for `destination` (`home`, `my_work`,
+        `inbox`, or `profile`). `tip` is null when that key is already dismissed.
+        Copy omits Personal workspace, free credit, and public identity when the
+        caller is ineligible. Requires a completed onboarding session.
+      tags: [FirstRunTips]
+      parameters:
+        - name: destination
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [home, my_work, inbox, profile]
+      responses:
+        "200":
+          description: Tip or null
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [tip]
+                properties:
+                  tip:
+                    nullable: true
+                    allOf:
+                      - $ref: "#/components/schemas/FirstRunTip"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /api/v1/first_run_tips/replay:
+    post:
+      operationId: replayFirstRunTips
+      summary: Restore the caller's dismissed first-run tips
+      tags: [FirstRunTips]
+      responses:
+        "200":
+          description: Keys restored for the signed-in user
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [restored_keys]
+                properties:
+                  restored_keys:
+                    type: array
+                    items:
+                      type: string
+                      enum: [home, my_work, inbox, profile]
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/v1/first_run_tips/{key}/dismiss:
+    post:
+      operationId: dismissFirstRunTip
+      summary: Permanently dismiss one tip for the signed-in user
+      tags: [FirstRunTips]
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [home, my_work, inbox, profile]
+      responses:
+        "204":
+          description: Dismissed
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /api/v1/onboarding/independent:
     post:
       operationId: completeIndependentOnboarding
@@ -3418,6 +3498,17 @@ components:
           type: string
           nullable: true
           enum: [realtime, daily, weekly, off]
+    FirstRunTip:
+      type: object
+      required: [key, label, body]
+      properties:
+        key:
+          type: string
+          enum: [home, my_work, inbox, profile]
+        label:
+          type: string
+        body:
+          type: string
   responses:
     NotFound:
       description: Resource not found
