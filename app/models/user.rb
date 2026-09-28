@@ -24,6 +24,7 @@ class User < ApplicationRecord
   has_many :notifications, foreign_key: :recipient_user_id, dependent: :destroy
   has_many :notification_preferences, dependent: :destroy
   has_many :first_run_tip_dismissals, dependent: :destroy
+  has_one :platform_staff, dependent: :destroy
   has_many :authored_peer_reviews, class_name: "PeerReview", foreign_key: :reviewer_id, dependent: :destroy
   has_many :received_peer_reviews, class_name: "PeerReview", foreign_key: :reviewee_id, dependent: :destroy
 
@@ -40,6 +41,14 @@ class User < ApplicationRecord
 
   def suspended?
     status == SUSPENDED
+  end
+
+  def platform_admin?
+    platform_staff&.active_admin? || false
+  end
+
+  def in_deletion_recovery?
+    deletion_requested_at.present? && deletion_cancelled_at.nil? && anonymized_at.nil?
   end
 
   def pending_onboarding?

@@ -8,4 +8,6 @@ class ProjectMessage < ApplicationRecord
   has_many :reports, class_name: "ProjectMessageReport", dependent: :destroy
 
   validates :body, presence: true, length: { maximum: MAX_BODY_LENGTH }
+
+  scope :visible, -> { where(removed_at: nil) }
 end

@@ -7,6 +7,7 @@ class CreditLot < ApplicationRecord
     personal_pack_purchase
     organization_contract
     cancellation_restore
+    staff_grant
   ].freeze
 
   belongs_to :owner, polymorphic: true
