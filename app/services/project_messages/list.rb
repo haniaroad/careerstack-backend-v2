@@ -13,7 +13,7 @@ module ProjectMessages
 
     def call
       membership = Access.membership!(project: @project, user: @actor)
-      messages = @project.messages.includes(author: :profile).order(:created_at)
+      messages = @project.messages.visible.includes(author: :profile).order(:created_at)
       {
         messages: messages.map { |message| serialize(message) },
         unread: unread?(membership),
@@ -24,7 +24,7 @@ module ProjectMessages
     private
 
     def unread?(membership)
-      latest = @project.messages.maximum(:created_at)
+      latest = @project.messages.visible.maximum(:created_at)
       return false if latest.nil?
       return true if membership.messages_last_read_at.nil?
 

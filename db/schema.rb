@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_09_26_120000) do
+ActiveRecord::Schema[8.0].define(version: 2026_09_27_233000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -136,7 +136,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_26_120000) do
     t.index ["status"], name: "index_ai_reviews_on_status"
     t.index ["task_id", "status"], name: "index_ai_reviews_on_task_id_and_status"
     t.index ["task_id"], name: "index_ai_reviews_on_task_id"
-    t.index ["task_id"], name: "index_ai_reviews_one_active_per_task", unique: true, where: "((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('running'::character varying)::text]))"
+    t.index ["task_id"], name: "index_ai_reviews_one_active_per_task", unique: true, where: "((status)::text = ANY ((ARRAY['pending'::character varying, 'running'::character varying])::text[]))"
     t.index ["task_submission_id"], name: "index_ai_reviews_on_task_submission_id"
     t.index ["user_id", "created_at"], name: "index_ai_reviews_on_user_id_and_created_at"
     t.index ["user_id"], name: "index_ai_reviews_on_user_id"
@@ -262,6 +262,18 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_26_120000) do
     t.datetime "updated_at", null: false
     t.index ["user_id", "tip_key"], name: "index_first_run_tip_dismissals_on_user_id_and_tip_key", unique: true
     t.index ["user_id"], name: "index_first_run_tip_dismissals_on_user_id"
+  end
+
+  create_table "impersonation_sessions", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "actor_id", null: false
+    t.uuid "target_id", null: false
+    t.string "reason", null: false
+    t.datetime "expires_at", null: false
+    t.datetime "ended_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["actor_id"], name: "index_impersonation_sessions_on_actor_id"
+    t.index ["target_id"], name: "index_impersonation_sessions_on_target_id"
   end
 
   create_table "inbox_alerts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -473,6 +485,15 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_26_120000) do
     t.index ["reviewer_id"], name: "index_peer_reviews_on_reviewer_id"
   end
 
+  create_table "platform_staff", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "user_id", null: false
+    t.string "role", default: "platform_admin", null: false
+    t.boolean "active", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["user_id"], name: "index_platform_staff_on_user_id", unique: true
+  end
+
   create_table "profiles", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.uuid "user_id", null: false
     t.string "display_name", null: false
@@ -612,6 +633,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_26_120000) do
     t.text "body", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.datetime "removed_at"
     t.index ["author_id"], name: "index_project_messages_on_author_id"
     t.index ["project_id", "created_at"], name: "index_project_messages_on_project_id_and_created_at"
     t.index ["project_id"], name: "index_project_messages_on_project_id"
@@ -675,6 +697,17 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_26_120000) do
     t.index ["project_id"], name: "index_self_reported_outcomes_on_project_id"
     t.index ["user_id", "occurred_on"], name: "index_self_reported_outcomes_on_user_id_and_occurred_on"
     t.index ["user_id"], name: "index_self_reported_outcomes_on_user_id"
+  end
+
+  create_table "staff_audit_events", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "actor_id", null: false
+    t.string "action", null: false
+    t.string "target_type", null: false
+    t.uuid "target_id", null: false
+    t.string "reason"
+    t.datetime "created_at", null: false
+    t.index ["actor_id"], name: "index_staff_audit_events_on_actor_id"
+    t.index ["target_type", "target_id"], name: "index_staff_audit_events_on_target_type_and_target_id"
   end
 
   create_table "stripe_customers", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -780,6 +813,9 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_26_120000) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "timezone", default: "UTC", null: false
+    t.datetime "deletion_requested_at"
+    t.datetime "deletion_cancelled_at"
+    t.datetime "anonymized_at"
     t.index ["age_status", "status"], name: "index_users_on_age_status_and_status"
     t.index ["email"], name: "index_users_on_email", unique: true
     t.index ["firebase_uid"], name: "index_users_on_firebase_uid", unique: true
@@ -818,6 +854,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_26_120000) do
   add_foreign_key "escalations", "projects"
   add_foreign_key "escalations", "workspaces"
   add_foreign_key "first_run_tip_dismissals", "users"
+  add_foreign_key "impersonation_sessions", "users", column: "actor_id"
+  add_foreign_key "impersonation_sessions", "users", column: "target_id"
   add_foreign_key "inbox_alerts", "organizations"
   add_foreign_key "inbox_alerts", "projects"
   add_foreign_key "inbox_alerts", "users", column: "recipient_user_id"
@@ -851,6 +889,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_26_120000) do
   add_foreign_key "peer_reviews", "projects"
   add_foreign_key "peer_reviews", "users", column: "reviewee_id"
   add_foreign_key "peer_reviews", "users", column: "reviewer_id"
+  add_foreign_key "platform_staff", "users"
   add_foreign_key "profiles", "taxonomy_terms", column: "current_role_term_id"
   add_foreign_key "profiles", "taxonomy_terms", column: "target_role_term_id"
   add_foreign_key "profiles", "users"
@@ -880,6 +919,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_26_120000) do
   add_foreign_key "self_reported_outcomes", "programs"
   add_foreign_key "self_reported_outcomes", "projects"
   add_foreign_key "self_reported_outcomes", "users"
+  add_foreign_key "staff_audit_events", "users", column: "actor_id"
   add_foreign_key "stripe_customers", "users"
   add_foreign_key "task_submission_links", "task_submissions"
   add_foreign_key "task_submissions", "tasks"

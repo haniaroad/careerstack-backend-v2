@@ -19,7 +19,7 @@ class FirebaseTokenVerifier
   STUB_PREFIX = "test:"
   BEARER_PREFIX = "Bearer "
 
-  Identity = Struct.new(:firebase_uid, :email, keyword_init: true)
+  Identity = Struct.new(:firebase_uid, :email, :platform_admin, :auth_time, keyword_init: true)
 
   class << self
     def verify!(authorization_header)
@@ -81,12 +81,17 @@ class FirebaseTokenVerifier
   def verify_stub(token)
     raise VerificationError, "Invalid stub token" unless token.start_with?(STUB_PREFIX)
 
-    _prefix, firebase_uid, email = token.split(":", 3)
+    _prefix, firebase_uid, email, claim, auth_time = token.split(":", 5)
     if firebase_uid.blank? || email.blank?
       raise VerificationError, "Stub token must be test:<firebase_uid>:<email>"
     end
 
-    build_identity(firebase_uid: firebase_uid, email: email)
+    build_identity(
+      firebase_uid: firebase_uid,
+      email: email,
+      platform_admin: claim == "platform_admin",
+      auth_time: auth_time.present? ? Time.zone.at(auth_time.to_i) : Time.current
+    )
   end
 
   def verify_firebase_id_token(token)
@@ -110,15 +115,26 @@ class FirebaseTokenVerifier
     raise VerificationError, "Token subject is missing" if payload["sub"].blank?
     raise VerificationError, "Token email is not verified" unless payload["email_verified"]
 
-    build_identity(firebase_uid: payload["sub"], email: payload["email"])
+    auth_time = payload["auth_time"].present? ? Time.zone.at(payload["auth_time"].to_i) : Time.current
+    build_identity(
+      firebase_uid: payload["sub"],
+      email: payload["email"],
+      platform_admin: payload["platform_admin"] == true,
+      auth_time: auth_time
+    )
   rescue JWT::DecodeError => e
     raise VerificationError, "Token verification failed: #{e.message}"
   end
 
-  def build_identity(firebase_uid:, email:)
+  def build_identity(firebase_uid:, email:, platform_admin: false, auth_time: Time.current)
     normalized_email = email.to_s.strip.downcase
     raise VerificationError, "Token email is missing" if normalized_email.blank?
 
-    Identity.new(firebase_uid: firebase_uid.to_s, email: normalized_email)
+    Identity.new(
+      firebase_uid: firebase_uid.to_s,
+      email: normalized_email,
+      platform_admin: platform_admin,
+      auth_time: auth_time
+    )
   end
 end

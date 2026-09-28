@@ -32,7 +32,7 @@ Compose starts `api` + `postgres`. The `web` service name is reserved for the fr
 |----------|---------|
 | `DATABASE_URL` / `DATABASE_*` | Primary Postgres |
 | `QUEUE_DATABASE_URL` / `QUEUE_DATABASE_NAME` | Solid Queue database (same instance, separate DB) |
-| `CORS_ORIGINS` | Comma-separated browser origins |
+| `CORS_ORIGINS` | Comma-separated browser origins. Include `https://admin.careerstack.co` for the staff site. |
 | `SECRET_KEY_BASE` | Rails secret (required in production) |
 | `SENTRY_DSN` | Optional error reporting |
 | `SENTRY_ENVIRONMENT` | Sentry environment label |
@@ -225,6 +225,24 @@ Offboarding is operator-only: `Organizations::StartOffboarding` (no product UI).
 
 
 **Staging note:** Cloud Run may still require an authenticated invoker at the edge (org policy). Rails public allowlist is verified locally; unlock browser anonymous → API calls via the public invoker checklist in [`infra/README.md`](infra/README.md).
+
+## Platform administration
+
+Staff tools are the same API. Authorization requires both a Firebase custom claim `platform_admin` (set with the Admin SDK, never from the browser) and an active `platform_staff` row. Hostname is not authorization.
+
+After the person has signed in once and has a user row:
+
+```bash
+bin/rails platform_admin:provision[person@example.com]
+```
+
+The task writes the staff row and an audit event. In stub mode the claim is a no-op. Against real Firebase, set the claim with the Admin SDK, then have them sign in again so the ID token includes `platform_admin`. `bin/rails platform_admin:deactivate[person@example.com]` clears access. Removing either the claim or the staff row locks them out.
+
+`CORS_ORIGINS` must include `https://admin.careerstack.co`. Firebase Authentication authorized domains must include `admin.careerstack.co`.
+
+`admin.careerstack.co` is a second Netlify site built from the frontend repo with `VITE_SURFACE=admin`. Do not attach that hostname to the current staging site `careerstack-frontend-v2.netlify.app`.
+
+Staff actions are not sent to Mixpanel. Audit rows are append-only.
 
 ## Tests and quality
 

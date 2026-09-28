@@ -64,13 +64,178 @@ paths:
       tags: [Session]
       responses:
         "200":
-          description: Session payload
+          description: Session payload. During impersonation the user and profile are the target, and impersonation is present.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Session"
         "401":
           $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/v1/platform_admin/session:
+    get:
+      operationId: getPlatformAdminSession
+      summary: Confirm the caller is platform staff
+      description: |
+        Requires a Firebase `platform_admin` custom claim and an active `platform_staff` row.
+        Organization admins are not platform staff. A staff session older than 8 hours is rejected.
+      tags: [PlatformAdmin]
+      responses:
+        "200":
+          description: Staff session is active
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [platform_admin]
+                properties:
+                  platform_admin:
+                    type: boolean
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/v1/platform_admin/search:
+    get:
+      operationId: searchPlatformAdmin
+      summary: Search users and organizations
+      description: |
+        Returns account status and workspace status. Date of birth is omitted.
+      tags: [PlatformAdmin]
+      parameters:
+        - in: query
+          name: q
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Matching users and organizations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformAdminSearch"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/v1/platform_admin/users/{user_id}/suspend:
+    post:
+      operationId: suspendPlatformUser
+      summary: Suspend an account
+      description: |
+        Blocks login and hides the public profile. Records remain. Emits a suspension
+        notification that does not include date of birth. Requires a reason and a fresh
+        sign-in (about 5 minutes).
+      tags: [PlatformAdmin]
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StaffReason"
+      responses:
+        "200":
+          description: Suspended account summary without date of birth
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/v1/platform_admin/users/{user_id}/date_of_birth:
+    post:
+      operationId: readPlatformDateOfBirth
+      summary: Read one date of birth
+      description: |
+        Dedicated view for a single user. The audit record stores the staff reason, not the date.
+        Bulk export (`user_ids`) is rejected. Unavailable during impersonation.
+      tags: [PlatformAdmin]
+      parameters:
+        - $ref: "#/components/parameters/UserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StaffReason"
+      responses:
+        "200":
+          description: One date of birth
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user_id:
+                    type: string
+                    format: uuid
+                  date_of_birth:
+                    type: string
+                    format: date
+                    nullable: true
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/v1/platform_admin/impersonation:
+    post:
+      operationId: startImpersonation
+      summary: Start a 30-minute read-only impersonation
+      description: |
+        Staff only. The browser sends `X-Impersonation-Session` on later requests.
+        Mutations, private file reads, and date-of-birth reads are rejected.
+      tags: [PlatformAdmin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id, reason]
+              properties:
+                user_id:
+                  type: string
+                  format: uuid
+                reason:
+                  type: string
+      responses:
+        "201":
+          description: Impersonation session
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [session_id, expires_at]
+                properties:
+                  session_id:
+                    type: string
+                    format: uuid
+                  expires_at:
+                    type: string
+                    format: date-time
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/v1/platform_admin/impersonation/{id}/exit:
+    post:
+      operationId: exitImpersonation
+      summary: End an impersonation session
+      tags: [PlatformAdmin]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Session ended
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /api/v1/platform_admin/audit:
+    get:
+      operationId: listStaffAudit
+      summary: List append-only staff audit events
+      description: Application code cannot update or delete these rows.
+      tags: [PlatformAdmin]
+      responses:
+        "200":
+          description: Recent audit events
         "403":
           $ref: "#/components/responses/Forbidden"
   /api/v1/notifications:
@@ -2276,6 +2441,13 @@ components:
       schema:
         type: string
         format: uuid
+    UserId:
+      name: user_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
   schemas:
     HealthStatus:
       type: object
@@ -2900,6 +3072,77 @@ components:
         credits:
           $ref: "#/components/schemas/CreditsSummary"
           nullable: true
+        impersonation:
+          type: object
+          nullable: true
+          description: Present only while a staff impersonation session is active. The rest of the payload is the target.
+          properties:
+            active:
+              type: boolean
+            session_id:
+              type: string
+              format: uuid
+            expires_at:
+              type: string
+              format: date-time
+            display_name:
+              type: string
+    StaffReason:
+      type: object
+      required: [reason]
+      properties:
+        reason:
+          type: string
+    PlatformAdminSearch:
+      type: object
+      required: [users, organizations]
+      properties:
+        users:
+          type: array
+          items:
+            type: object
+            required: [id, email, status, workspaces]
+            properties:
+              id:
+                type: string
+                format: uuid
+              email:
+                type: string
+              status:
+                type: string
+              display_name:
+                type: string
+                nullable: true
+              deletion_recovery:
+                type: boolean
+              workspaces:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    name:
+                      type: string
+                    kind:
+                      type: string
+                    status:
+                      type: string
+                      nullable: true
+        organizations:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              name:
+                type: string
+              workspace_status:
+                type: string
+              workspace_disabled:
+                type: boolean
     CreditsSummary:
       type: object
       required: [remaining, trial_remaining, purchased_remaining, owner_type]

@@ -63,7 +63,7 @@ module Notifications
       "activity_summary" => { tier: "digest_config", category: "reminders", emit: true },
       "pending_invitation_reminder" => { tier: "digest_config", category: "reminders", emit: true },
       "account_security_change" => { tier: "mandatory", category: "account", emit: false },
-      "suspension" => { tier: "mandatory", category: "account", emit: false },
+      "suspension" => { tier: "mandatory", category: "account", emit: true },
       "policy_change" => { tier: "mandatory", category: "account", emit: false },
       "peer_review_received" => { tier: "realtime_config", category: "project_activity", emit: true },
       "peer_review_request" => { tier: "realtime_config", category: "project_activity", emit: true },
@@ -71,6 +71,13 @@ module Notifications
     }.freeze
 
     COPY = {
+      "suspension" => {
+        title: "Account suspended",
+        heading: "Your CareerStack account is suspended",
+        body: "Your account cannot be used until CareerStack staff restore it. Your records are retained.",
+        cta: "Contact support",
+        path: "/sign-in"
+      },
       "organization_invitation" => {
         title: "Organization invitation",
         heading: "You've been invited to CareerStack",

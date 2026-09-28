@@ -62,4 +62,10 @@ class Invitation < ApplicationRecord
   def accept!(user)
     update!(accepted_at: Time.current, accepted_by_user: user)
   end
+
+  def rotate_token!
+    raw_token = SecureRandom.urlsafe_base64(self.class::TOKEN_BYTES)
+    update!(token_digest: self.class.digest(raw_token), expires_at: self.class::DEFAULT_TTL.from_now)
+    raw_token
+  end
 end
