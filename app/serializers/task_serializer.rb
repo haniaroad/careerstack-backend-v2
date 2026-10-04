@@ -1,14 +1,15 @@
 # frozen_string_literal: true
 
 class TaskSerializer
-  def self.call(task, include_detail: false, viewer: nil)
-    new(task, include_detail: include_detail, viewer: viewer).as_json
+  def self.call(task, include_detail: false, viewer: nil, host: nil)
+    new(task, include_detail: include_detail, viewer: viewer, host: host).as_json
   end
 
-  def initialize(task, include_detail: false, viewer: nil)
+  def initialize(task, include_detail: false, viewer: nil, host: nil)
     @task = task
     @include_detail = include_detail
     @viewer = viewer
+    @host = host
   end
 
   def as_json
@@ -41,7 +42,7 @@ class TaskSerializer
     }
 
     if @include_detail
-      payload[:submissions] = @task.submissions.order(:attempt_number).map { |s| TaskSubmissionSerializer.call(s) }
+      payload[:submissions] = @task.submissions.order(:attempt_number).map { |s| TaskSubmissionSerializer.call(s, host: @host) }
       latest_review = @task.ai_reviews.order(created_at: :desc).first
       payload[:latest_review] = latest_review ? AiReviewSerializer.call(latest_review) : nil
     end

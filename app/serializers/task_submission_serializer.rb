@@ -1,12 +1,13 @@
 # frozen_string_literal: true
 
 class TaskSubmissionSerializer
-  def self.call(submission)
-    new(submission).as_json
+  def self.call(submission, host: nil)
+    new(submission, host: host).as_json
   end
 
-  def initialize(submission)
+  def initialize(submission, host: nil)
     @submission = submission
+    @host = host
   end
 
   def as_json
@@ -31,7 +32,16 @@ class TaskSubmissionSerializer
       filename: blob.filename.to_s,
       content_type: blob.content_type,
       byte_size: blob.byte_size,
-      signed_id: blob.signed_id
+      signed_id: blob.signed_id,
+      url: blob_url(attachment)
     }
+  end
+
+  def blob_url(attachment)
+    Rails.application.routes.url_helpers.rails_blob_url(
+      attachment,
+      disposition: "inline",
+      host: @host.presence || "www.example.com"
+    )
   end
 end
