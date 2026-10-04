@@ -5,7 +5,7 @@ module Api
     class TasksController < BaseController
       def index
         workspace = require_workspace!
-        tasks = Task.in_workspace(workspace).for_assignee(current_user).includes(:project).order(updated_at: :desc)
+        tasks = visible_tasks(workspace).includes(:project).order(updated_at: :desc)
         render json: { tasks: tasks.map { |t| TaskSerializer.call(t) } }
       end
 
@@ -26,16 +26,34 @@ module Api
       def find_accessible_task!
         task = Task.includes(:project).find_by(id: params[:id])
         raise ActiveRecord::RecordNotFound if task.nil?
-
-        project = task.project
-        raise ActiveRecord::RecordNotFound unless current_user.member_of_workspace?(project.workspace)
-
-        allowed = task.assignee_id == current_user.id ||
-          project.creator_id == current_user.id ||
-          project.memberships.active.exists?(user_id: current_user.id)
-        raise ActiveRecord::RecordNotFound unless allowed
+        raise ActiveRecord::RecordNotFound unless accessible_task?(task)
 
         task
+      end
+
+      def visible_tasks(workspace)
+        assigned = Task.for_assignee(current_user)
+        in_workspace_ids = assigned.joins(:project).where(projects: { workspace_id: workspace.id }).select("tasks.id")
+        return Task.where(id: in_workspace_ids) unless workspace.personal?
+
+        joined_personal_ids = assigned
+          .joins(project: [ :workspace, :memberships ])
+          .where(workspaces: { kind: "personal" })
+          .where(project_memberships: { user_id: current_user.id, status: ProjectMembership::STATUS_ACTIVE })
+          .select("tasks.id")
+
+        Task.where(id: in_workspace_ids).or(Task.where(id: joined_personal_ids))
+      end
+
+      def accessible_task?(task)
+        project = task.project
+        if project.workspace.organization?
+          return false unless current_user.member_of_workspace?(project.workspace)
+        end
+
+        task.assignee_id == current_user.id ||
+          project.creator_id == current_user.id ||
+          project.memberships.active.exists?(user_id: current_user.id)
       end
     end
   end

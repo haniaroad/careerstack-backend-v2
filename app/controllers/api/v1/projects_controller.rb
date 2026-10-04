@@ -178,6 +178,19 @@ module Api
       end
 
       def visible_projects(workspace)
+        in_workspace = workspace_projects(workspace)
+        return in_workspace unless workspace.personal?
+
+        joined_personal_ids = Project
+          .joins(:workspace, :memberships)
+          .where(workspaces: { kind: "personal" })
+          .where(project_memberships: { user_id: current_user.id, status: ProjectMembership::STATUS_ACTIVE })
+          .select(:id)
+
+        Project.where(id: in_workspace.select(:id)).or(Project.where(id: joined_personal_ids))
+      end
+
+      def workspace_projects(workspace)
         scope = Project.in_workspace(workspace)
         if workspace.organization?
           membership = current_user.membership_for(workspace.organization)

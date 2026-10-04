@@ -68,7 +68,7 @@ module Inbox
       ProjectApplication.joins(:project)
                         .pending
                         .where(projects: { workspace_id: @workspace.id, creator_id: @user.id })
-                        .includes(:project, :applicant)
+                        .includes(:project, applicant: :profile)
                         .map { |application| serialize_application(application) }
     end
 
@@ -123,8 +123,8 @@ module Inbox
         related_id: application.id,
         project_id: application.project_id,
         project_title: application.project.title,
-        title: "Application for #{application.requested_role}",
-        description: "Pending join application",
+        title: "#{applicant_display_name(application.applicant)} applied for #{application.requested_role}",
+        description: application.motivation,
         status_label: overdue ? "Response overdue" : "Pending decision",
         urgency: overdue ? "high" : "medium",
         is_overdue: overdue,
@@ -133,6 +133,8 @@ module Inbox
         payload: {
           application_id: application.id,
           applicant_id: application.applicant_id,
+          applicant_display_name: applicant_display_name(application.applicant),
+          profile_slug: applicant_profile_slug(application.applicant),
           requested_role: application.requested_role,
           motivation: application.motivation,
           project_id: application.project_id
@@ -187,6 +189,16 @@ module Inbox
 
     def overdue_by_age?(timestamp, threshold)
       timestamp.present? && timestamp < threshold.ago
+    end
+
+    def applicant_display_name(user)
+      user.profile&.display_name.presence || user.email
+    end
+
+    def applicant_profile_slug(user)
+      return nil unless Profiles::Visibility.public_adult?(user)
+
+      user.profile&.slug
     end
   end
 end
