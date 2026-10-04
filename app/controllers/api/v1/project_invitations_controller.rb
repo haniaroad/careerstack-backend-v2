@@ -11,7 +11,7 @@ module Api
 
       def create
         project = find_creator_project!
-        invitee = User.find(params.require(:invitee_id))
+        invitee = resolve_invitee!
         invitation = Projects::CreateInvitation.call(
           project: project,
           inviter: current_user,
@@ -46,6 +46,30 @@ module Api
         workspace
       end
 
+      def resolve_invitee!
+        if params[:invitee_email].present?
+          email = params[:invitee_email].to_s.strip.downcase
+          unless email.match?(URI::MailTo::EMAIL_REGEXP)
+            raise DomainError.new("Enter a valid email address.", code: "validation_error")
+          end
+          if email == current_user.email.to_s.downcase
+            raise DomainError.new("You can't invite yourself to this project.", code: "validation_error")
+          end
+
+          user = User.where("LOWER(email) = ?", email).first
+          if user.nil?
+            raise DomainError.new(
+              "That person needs a CareerStack account before you can invite them.",
+              code: "invitee_not_found"
+            )
+          end
+
+          return user
+        end
+
+        User.find(params.require(:invitee_id))
+      end
+
       def find_creator_project!
         workspace = require_workspace!
         project = Project.in_workspace(workspace).find_by(id: params[:project_id], creator_id: current_user.id)
@@ -68,6 +92,7 @@ module Api
           project_id: invitation.project_id,
           inviter_id: invitation.inviter_id,
           invitee_id: invitation.invitee_id,
+          invitee_email: invitation.invitee&.email,
           requested_role: invitation.requested_role,
           status: invitation.status,
           created_at: invitation.created_at,

@@ -20,6 +20,14 @@ module Invitations
       invitation = access.organization.invitations.find(@invitation_id)
       raise Error.new("Only a pending invitation can be resent", code: "validation_error") unless invitation.usable?
 
+      if invitation.last_sent_at.present? && invitation.last_sent_at > 15.minutes.ago
+        retry_at = invitation.last_sent_at + 15.minutes
+        raise Error.new(
+          "You can resend this invite after #{retry_at.utc.strftime('%Y-%m-%d %H:%M UTC')}.",
+          code: "resend_cooldown"
+        )
+      end
+
       unless access.membership.administrator? || invitation.role == OrganizationMembership::PARTICIPANT
         raise Error.new(
           "Only organization administrators can resend this invitation",
@@ -29,6 +37,7 @@ module Invitations
       end
 
       raw = invitation.rotate_token!
+      invitation.update!(last_sent_at: Time.current)
       deliver!(invitation, access.organization, raw)
       invitation
     end

@@ -40,7 +40,8 @@ class Invitation < ApplicationRecord
         created_by_user: created_by_user,
         role: role,
         expires_at: expires_at,
-        token_digest: digest(raw_token)
+        token_digest: digest(raw_token),
+        last_sent_at: Time.current
       )
 
       [ invitation, raw_token ]

@@ -124,7 +124,7 @@ Set `OPENROUTER_API_KEY` for project draft generation and solo task review. Runt
 - `AI_KILL_SWITCH` / `AI_BUDGET_STOP` — reject new generation and review work without provider calls
 - `AI_INLINE_JOBS=true` — run AI jobs in-process (default for local Compose without a worker)
 
-Evidence files use Active Storage (Disk locally under `storage/`; configure private GCS for staging/production in `config/storage.yml`).
+Evidence files use Active Storage. Local Docker and tests use Disk (`storage/` and `tmp/storage`). Staging and production use a private GCS bucket when `GCS_BUCKET` is set (`config/storage.yml` service `google`, IAM signed URLs, no JSON key). Set `GCS_PROJECT_ID`, `GCS_BUCKET`, and `GCS_SERVICE_ACCOUNT_EMAIL`. The Cloud Run runtime service account needs object admin on that bucket and permission to sign blobs (`iam.serviceAccounts.signBlob` on itself). Files written only to an instance disk before this change cannot be recovered. A new-tab file link is the Active Storage redirect, which opens a short-lived signed object URL.
 
 ## Team joining
 
