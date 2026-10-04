@@ -3,6 +3,7 @@
 require "rails_helper"
 
 RSpec.describe "Invitations", type: :request do
+  include ActiveSupport::Testing::TimeHelpers
   let(:admin) { create_onboarded_adult(email: "admin@example.com") }
   let(:organization) { create_organization(name: "Bridge Academy") }
   let(:program) { create_program(organization: organization, name: "Spring Cohort") }
@@ -236,13 +237,35 @@ RSpec.describe "Invitations", type: :request do
       digest = Invitation.find(invitation_id).token_digest
 
       expect {
-        post "/api/v1/organizations/#{organization.id}/invitations/#{invitation_id}/resend",
-             headers: headers_for(admin),
-             as: :json
+        travel 16.minutes do
+          post "/api/v1/organizations/#{organization.id}/invitations/#{invitation_id}/resend",
+               headers: headers_for(admin),
+               as: :json
+        end
       }.not_to change(Invitation, :count)
 
       expect(response).to have_http_status(:ok)
       expect(Invitation.find(invitation_id).token_digest).not_to eq(digest)
+      expect(response.parsed_body.dig("invitation", "last_sent_at")).to be_present
+    end
+
+    it "refuses a resend inside 15 minutes without sending another email" do
+      admin.update!(active_workspace: organization.workspace)
+      post "/api/v1/invitations",
+           params: { organization_id: organization.id, email: "soon@example.com" },
+           headers: headers_for(admin),
+           as: :json
+      invitation_id = response.parsed_body.dig("invitation", "id")
+
+      expect {
+        post "/api/v1/organizations/#{organization.id}/invitations/#{invitation_id}/resend",
+             headers: headers_for(admin),
+             as: :json
+      }.not_to change(Notification, :count)
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response.parsed_body.dig("error", "code")).to eq("resend_cooldown")
+      expect(response.parsed_body.dig("error", "message")).to include("resend this invite after")
     end
   end
 end

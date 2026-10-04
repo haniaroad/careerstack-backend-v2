@@ -140,6 +140,7 @@ class ProjectSerializer
     {
       id: invitation.id,
       invitee_id: invitation.invitee_id,
+      invitee_email: invitation.invitee&.email,
       requested_role: invitation.requested_role,
       status: invitation.status,
       created_at: invitation.created_at

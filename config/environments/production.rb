@@ -20,7 +20,7 @@ Rails.application.configure do
 
   config.require_master_key = false
 
-  config.active_storage.service = :google
+  config.active_storage.service = ENV["GCS_BUCKET"].present? ? :google : :local
 
   missing = %w[SECRET_KEY_BASE DATABASE_URL].reject { |key| ENV[key].present? }
   if missing.any?

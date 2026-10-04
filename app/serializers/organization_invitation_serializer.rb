@@ -12,6 +12,7 @@ class OrganizationInvitationSerializer
       status: invitation_status(invitation),
       invited_by_name: invitation.created_by_user&.profile&.display_name,
       expires_at: invitation.expires_at,
+      last_sent_at: invitation.last_sent_at,
       accepted_at: invitation.accepted_at,
       created_at: invitation.created_at
     }

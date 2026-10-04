@@ -14,6 +14,8 @@ Rails.application.routes.draw do
       post "notifications/:id/read", to: "notifications#read"
       get "notification_preferences", to: "notification_preferences#show"
       put "notification_preferences", to: "notification_preferences#update"
+      get "home/warning_dismissals", to: "home_warning_dismissals#index"
+      post "home/warning_dismissals", to: "home_warning_dismissals#create"
       get "first_run_tips", to: "first_run_tips#show"
       post "first_run_tips/replay", to: "first_run_tips#replay"
       post "first_run_tips/:key/dismiss", to: "first_run_tips#dismiss"

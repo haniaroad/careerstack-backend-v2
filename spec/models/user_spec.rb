@@ -59,6 +59,13 @@ RSpec.describe User do
       expect(create_onboarded_adult(email: "independent@example.com").public_identity_visible?).to be(true)
     end
 
+    it "is false after an independent adult reverses public identity" do
+      user = create_onboarded_adult(email: "independent-private@example.com")
+      user.age_visibility_preference.reverse_public_identity!
+
+      expect(user.reload.public_identity_visible?).to be(false)
+    end
+
     it "is false for an org-derived adult who has not confirmed" do
       user = create_user(email: "orgadult@example.com", status: User::ACTIVE, age_status: AgeStatusCalculator::ADULT)
       user.update!(onboarding_path: "organization_invited")

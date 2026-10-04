@@ -184,6 +184,14 @@ class Project < ApplicationRecord
     phase == PHASE_ENDING_SOON
   end
 
+  # Home warning key. Expired is the durable status; ending and grace are derived.
+  def home_warning_phase
+    return "expired" if expired?
+    return phase if phase == PHASE_ENDING_SOON || phase == PHASE_GRACE_PERIOD
+
+    nil
+  end
+
   def read_only_phase?
     phase == PHASE_READ_ONLY
   end

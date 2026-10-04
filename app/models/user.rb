@@ -24,6 +24,7 @@ class User < ApplicationRecord
   has_many :notifications, foreign_key: :recipient_user_id, dependent: :destroy
   has_many :notification_preferences, dependent: :destroy
   has_many :first_run_tip_dismissals, dependent: :destroy
+  has_many :home_warning_dismissals, dependent: :destroy
   has_one :platform_staff, dependent: :destroy
   has_many :authored_peer_reviews, class_name: "PeerReview", foreign_key: :reviewer_id, dependent: :destroy
   has_many :received_peer_reviews, class_name: "PeerReview", foreign_key: :reviewee_id, dependent: :destroy
@@ -67,10 +68,17 @@ class User < ApplicationRecord
 
   def public_identity_visible?
     return false if privacy_restricted?
-    return true if onboarding_path == "independent"
+
+    preference = age_visibility_preference
+    if onboarding_path == "independent"
+      # Public until the adult explicitly reverses. Missing preference stays public.
+      return true if preference.nil?
+
+      return preference.public_identity_confirmed?
+    end
 
     # Org-derived users must clear the age-up visibility review first.
-    age_visibility_preference&.public_identity_confirmed? || false
+    preference&.public_identity_confirmed? || false
   end
 
   # Personal first when granted, then one workspace per active organization membership.

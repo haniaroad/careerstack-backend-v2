@@ -111,6 +111,35 @@ RSpec.describe "Organization administration", type: :request do
 
       expect(response).to have_http_status(:forbidden)
     end
+
+    it "lists every project in a program for staff" do
+      program = create_program(organization: organization, name: "With work")
+      other = create_program(organization: organization, name: "Other")
+      headers = org_headers(manager)
+
+      post "/api/v1/projects",
+           params: { title: "Cohort build", program_id: program.id },
+           headers: headers,
+           as: :json
+      expect(response).to have_http_status(:created)
+      project_id = response.parsed_body.dig("project", "id")
+
+      post "/api/v1/projects",
+           params: { title: "Elsewhere", program_id: other.id },
+           headers: org_headers(admin),
+           as: :json
+
+      get "/api/v1/organizations/#{organization.id}/programs", headers: org_headers(admin)
+      listed = response.parsed_body["programs"].find { |row| row["id"] == program.id }
+      expect(listed["projects"].map { |row| row["id"] }).to eq([ project_id ])
+      expect(listed["projects"].first["title"]).to eq("Cohort build")
+      expect(listed["projects"].first["status"]).to eq("draft")
+
+      empty = create_program(organization: organization, name: "Empty list")
+      get "/api/v1/organizations/#{organization.id}/programs", headers: org_headers(admin)
+      blank = response.parsed_body["programs"].find { |row| row["id"] == empty.id }
+      expect(blank["projects"]).to eq([])
+    end
   end
 
   describe "project program association and filter" do

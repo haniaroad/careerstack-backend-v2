@@ -6,12 +6,13 @@ test:
   service: Disk
   root: <%= Rails.root.join("tmp/storage") %>
 
-# Staging/production: private GCS bucket via env. Falls back to Disk if unset.
+# Deployed environments select this service when GCS_BUCKET is set.
+# Local Docker and tests stay on Disk. Signed URLs use the Cloud Run
+# service account (iam: true); do not put a JSON key in the environment.
 google:
-  service: Disk
-  root: <%= Rails.root.join("storage") %>
-  # When google-cloud-storage is configured in a later infra pass, replace with:
-  # service: GCS
-  # project: <%= ENV.fetch("GCS_PROJECT_ID", "") %>
-  # bucket: <%= ENV.fetch("GCS_BUCKET", "") %>
-  # credentials: <%= ENV.fetch("GCS_CREDENTIALS_JSON", "") %>
+  service: GCS
+  project: <%= ENV["GCS_PROJECT_ID"] %>
+  bucket: <%= ENV["GCS_BUCKET"] %>
+  iam: true
+  gsa_email: <%= ENV["GCS_SERVICE_ACCOUNT_EMAIL"] %>
+  public: false

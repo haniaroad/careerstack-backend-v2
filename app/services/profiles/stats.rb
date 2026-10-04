@@ -116,8 +116,10 @@ module Profiles
     end
 
     def activity_sparkline
-      since = SPARKLINE_WEEKS.weeks.ago.beginning_of_week
-      events = ContributionEvent.where(user_id: @user.id).where("occurred_at >= ?", since)
+      current_week = Time.current.utc.to_date.beginning_of_week(:monday)
+      start_week = current_week - (SPARKLINE_WEEKS - 1).weeks
+      since = start_week.in_time_zone("UTC").beginning_of_day
+      events = ContributionEvent.where(user_id: @user.id).where(occurred_at: since..)
 
       buckets = Hash.new(0)
       events.find_each do |event|
@@ -126,8 +128,7 @@ module Profiles
       end
 
       SPARKLINE_WEEKS.times.map do |offset|
-        week_start = (since + offset.weeks).to_date.beginning_of_week(:monday)
-        iso = week_start.iso8601
+        iso = (start_week + offset.weeks).iso8601
         { week_start: iso, count: buckets[iso] || 0 }
       end
     end
