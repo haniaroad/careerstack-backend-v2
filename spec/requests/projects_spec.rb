@@ -101,6 +101,88 @@ RSpec.describe "Projects API", type: :request do
     expect(ids).not_to include(personal_project.id)
   end
 
+  it "opens a public project from Explore for a viewer who is not a member" do
+    viewer = create_onboarded_adult(email: "explore-open-#{SecureRandom.hex(3)}@example.com")
+    owner = create_onboarded_adult(email: "explore-owner-#{SecureRandom.hex(3)}@example.com")
+    solo = Project.create!(
+      workspace: owner.personal_workspace,
+      creator: owner,
+      title: "Public solo",
+      mode: "solo",
+      status: "active",
+      visibility: "public",
+      ends_on: Date.current + 30
+    )
+    finished = Project.create!(
+      workspace: owner.personal_workspace,
+      creator: owner,
+      title: "Finished public",
+      mode: "solo",
+      status: "completed",
+      visibility: "public",
+      ends_on: Date.current - 1
+    )
+
+    get "/api/v1/projects/#{solo.id}", headers: headers_for(viewer)
+    expect(response).to have_http_status(:ok)
+    expect(response.parsed_body.dig("project", "title")).to eq("Public solo")
+
+    get "/api/v1/projects/#{finished.id}", headers: headers_for(viewer)
+    expect(response).to have_http_status(:ok)
+    expect(response.parsed_body.dig("project", "status")).to eq("completed")
+  end
+
+  it "reports a pending application on a public team project without crashing" do
+    viewer = create_onboarded_adult(email: "explore-applicant-#{SecureRandom.hex(3)}@example.com")
+    owner = create_onboarded_adult(email: "explore-team-owner-#{SecureRandom.hex(3)}@example.com")
+    project = Project.create!(
+      workspace: owner.personal_workspace,
+      creator: owner,
+      title: "Public team",
+      mode: "team",
+      status: "active",
+      visibility: "public",
+      joining_mode: "application",
+      capacity: 3,
+      roles_needed: [ "Designer" ],
+      ends_on: Date.current + 30
+    )
+    ProjectApplication.create!(
+      project: project,
+      applicant: viewer,
+      requested_role: "Designer",
+      motivation: "I can help with the visual design.",
+      availability_confirmed: true,
+      status: "pending"
+    )
+
+    get "/api/v1/projects/#{project.id}", headers: headers_for(viewer)
+    expect(response).to have_http_status(:ok)
+    expect(response.parsed_body.dig("project", "viewer_application_status")).to eq("pending")
+    expect(response.parsed_body.dig("project", "viewer_can_join")).to eq(false)
+  end
+
+  it "hides private, draft, and cancelled projects from a viewer who is not a member" do
+    viewer = create_onboarded_adult(email: "explore-hidden-#{SecureRandom.hex(3)}@example.com")
+    owner = create_onboarded_adult(email: "explore-hidden-owner-#{SecureRandom.hex(3)}@example.com")
+    hidden = %w[private draft cancelled].map do |kind|
+      Project.create!(
+        workspace: owner.personal_workspace,
+        creator: owner,
+        title: "#{kind} project",
+        mode: "solo",
+        status: kind == "private" ? "active" : kind,
+        visibility: kind == "private" ? "private" : "public",
+        ends_on: Date.current + 30
+      )
+    end
+
+    hidden.each do |project|
+      get "/api/v1/projects/#{project.id}", headers: headers_for(viewer)
+      expect(response).to have_http_status(:not_found)
+    end
+  end
+
   it "discards a draft without changing credits" do
     post "/api/v1/projects",
          params: { title: "Temp" }.to_json,

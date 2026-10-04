@@ -57,7 +57,7 @@ class ProjectSerializer
     end
 
     if @viewer && !member_viewer? && @project.team?
-      pending_application = @project.applications.pending.find_by(user_id: @viewer.id)
+      pending_application = @project.applications.pending.find_by(applicant_id: @viewer.id)
       payload[:viewer_application_status] = pending_application ? "pending" : nil
       payload[:viewer_can_join] = @project.joinable? && pending_application.nil?
     end
