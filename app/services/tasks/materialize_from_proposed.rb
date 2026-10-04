@@ -29,6 +29,7 @@ module Tasks
           acceptance_criteria: task_hash[:summary].presence || task_hash[:acceptance_criteria],
           submission_expectations: task_hash[:submission_expectations].presence || @project.submission_expectations,
           due_on: due_on,
+          reference_video_url: Tasks::ReferenceVideo.normalize!(task_hash[:reference_video_url]),
           status: Task::STATUS_PENDING,
           position: index
         )

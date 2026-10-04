@@ -6,6 +6,8 @@ module Projects
       ACTIONS = [
         :join,
         :create_task,
+        :update_task,
+        :delete_task,
         :submit,
         :review_decide,
         :leave,
@@ -47,7 +49,7 @@ module Projects
         case @action
         when :join
           open_work_phase?
-        when :create_task, :assign
+        when :create_task, :update_task, :delete_task, :assign
           open_work_phase?
         when :submit, :review_decide, :leave, :remove
           finishing_phase?
@@ -79,6 +81,10 @@ module Projects
           "Joining is closed for this project phase"
         when :create_task
           "New tasks cannot be created in this project phase"
+        when :update_task
+          "Tasks cannot be edited in this project phase"
+        when :delete_task
+          "Tasks cannot be deleted in this project phase"
         when :submit
           "Submissions are not allowed in this project phase"
         when :review_decide

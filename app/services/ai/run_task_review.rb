@@ -160,6 +160,7 @@ module Ai
         "Task title: #{task.title}",
         "Acceptance criteria: #{task.acceptance_criteria}",
         "Task submission expectations: #{task.submission_expectations}"
+        # reference_video_url is briefing context and must not be included.
       ].join("\n")
     end
 

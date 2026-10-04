@@ -90,6 +90,8 @@ Rails.application.routes.draw do
       post "peer_reviews/:id/submit", to: "peer_reviews#submit"
       post "peer_reviews/:id/reports", to: "peer_review_reports#create"
       get "tasks/:id", to: "tasks#show"
+      patch "tasks/:id", to: "tasks#update"
+      delete "tasks/:id", to: "tasks#destroy"
       patch "tasks/:task_id/assignment", to: "task_assignments#update"
       post "tasks/:task_id/submissions", to: "task_submissions#create"
       post "tasks/:task_id/creator_review", to: "creator_reviews#create"

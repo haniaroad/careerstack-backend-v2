@@ -3811,6 +3811,50 @@ components:
           description: Task detail
         "404":
           $ref: "#/components/responses/NotFound"
+    patch:
+      operationId: updateTask
+      summary: Creator updates a non-approved task during an open work phase
+      tags: [Tasks]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title: { type: string }
+                acceptance_criteria: { type: string, nullable: true }
+                submission_expectations: { type: string, nullable: true }
+                due_on: { type: string, format: date, nullable: true }
+                reference_video_url: { type: string, nullable: true }
+      responses:
+        "200":
+          description: Updated task
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
+    delete:
+      operationId: deleteTask
+      summary: Creator deletes a non-approved task and its submissions
+      tags: [Tasks]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "204":
+          description: Task deleted
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/UnprocessableEntity"
   /api/v1/tasks/{task_id}/submissions:
     post:
       operationId: createTaskSubmission

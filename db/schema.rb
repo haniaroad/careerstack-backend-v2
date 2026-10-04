@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_09_27_233000) do
+ActiveRecord::Schema[8.0].define(version: 2026_10_04_120000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -758,6 +758,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_09_27_233000) do
     t.text "acceptance_criteria"
     t.text "submission_expectations"
     t.date "due_on"
+    t.string "reference_video_url"
     t.string "status", default: "pending", null: false
     t.integer "position", default: 0, null: false
     t.datetime "first_submitted_at"
