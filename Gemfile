@@ -16,7 +16,7 @@ gem "sentry-rails"
 gem "jwt"
 
 # Personal credit pack Checkout + webhooks
-gem "stripe", "~> 13.0"
+gem "stripe", "~> 19.5"
 
 # Anonymous public API rate limiting
 gem "rack-attack"
