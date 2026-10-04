@@ -14,6 +14,18 @@ module Api
         render json: { task: TaskSerializer.call(task, include_detail: true) }
       end
 
+      def update
+        task = find_accessible_task!
+        updated = Tasks::Update.call(task: task, actor: current_user, attrs: task_params)
+        render json: { task: TaskSerializer.call(updated, include_detail: true) }
+      end
+
+      def destroy
+        task = find_accessible_task!
+        Tasks::Destroy.call(task: task, actor: current_user)
+        head :no_content
+      end
+
       private
 
       def require_workspace!
@@ -43,6 +55,10 @@ module Api
           .select("tasks.id")
 
         Task.where(id: in_workspace_ids).or(Task.where(id: joined_personal_ids))
+      end
+
+      def task_params
+        params.permit(:title, :acceptance_criteria, :submission_expectations, :due_on, :reference_video_url)
       end
 
       def accessible_task?(task)
