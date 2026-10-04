@@ -5,6 +5,7 @@ module Api
     class OrganizationReportsController < BaseController
       def index
         access = Organizations::Access.staff!(user: current_user, organization_id: params[:organization_id])
+        OrganizationReports::ExpireStaleGenerations.call(organization: access.organization)
         reports = access.organization.organization_reports.includes(:program).order(created_at: :desc)
         render json: { reports: reports.map { |report| OrganizationReportSerializer.call(report) } }
       end
@@ -22,7 +23,8 @@ module Api
       def show
         report = find_report!
         Organizations::Access.staff!(user: current_user, organization_id: report.organization_id)
-        render json: { report: OrganizationReportSerializer.call(report) }
+        OrganizationReports::ExpireStaleGenerations.call(organization: report.organization)
+        render json: { report: OrganizationReportSerializer.call(report.reload) }
       end
 
       def generate

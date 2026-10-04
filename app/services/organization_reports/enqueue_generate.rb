@@ -13,6 +13,9 @@ module OrganizationReports
 
     def call
       Organizations::Access.require_exportable!(@report.organization)
+      OrganizationReports::ExpireStaleGenerations.call(organization: @report.organization)
+      @report.reload
+
       raise Error.new("Ready snapshots cannot be regenerated", code: "report_immutable") if @report.ready?
       unless @report.draft? || @report.failed?
         raise Error.new("This report cannot be generated in its current state")
