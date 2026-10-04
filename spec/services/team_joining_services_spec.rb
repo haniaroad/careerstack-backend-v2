@@ -512,5 +512,36 @@ RSpec.describe "Team joining services" do
       expect(result[:review]).to be_nil
       expect(task.ai_reviews.count).to eq(0)
     end
+
+    it "lets a participant claim and release only their own unassigned task" do
+      ctx = setup_org_team(
+        creator_email: "claim-creator@example.com",
+        participant_emails: [ "claim-member@example.com", "claim-other@example.com" ],
+        capacity: 3,
+        proposed_tasks: [
+          { "title" => "Open task", "summary" => "Claim me", "recommended_due_date" => (Date.current + 4).iso8601 }
+        ]
+      )
+      confirm_team!(ctx)
+      member = ctx[:participants].first
+      other = ctx[:participants].second
+      Projects::InstantJoin.call(project: ctx[:project], user: member, participant_role: "Designer")
+      Projects::InstantJoin.call(project: ctx[:project], user: other, participant_role: "Designer")
+      task = ctx[:project].tasks.first
+
+      expect {
+        Tasks::Assign.call(task: task, actor: member, assignee: other)
+      }.to raise_error(DomainError, /someone else/)
+
+      Tasks::Assign.call(task: task, actor: member, assignee: member)
+      expect(task.reload.assignee_id).to eq(member.id)
+
+      expect {
+        Tasks::Unassign.call(task: task, actor: other)
+      }.to raise_error(DomainError, /current assignee/)
+
+      Tasks::Unassign.call(task: task, actor: member)
+      expect(task.reload.assignee_id).to be_nil
+    end
   end
 end

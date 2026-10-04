@@ -233,4 +233,20 @@ RSpec.describe "Explore directory", type: :request do
          as: :json
     expect(response).to have_http_status(:unauthorized)
   end
+
+  it "orders discoverable projects by newest created, ignoring later updates" do
+    viewer = create_onboarded_adult(email: "explore-order-#{SecureRandom.hex(3)}@example.com")
+    owner = create_onboarded_adult(email: "explore-order-owner-#{SecureRandom.hex(3)}@example.com")
+    use_workspace!(viewer, viewer.personal_workspace)
+    older = directory_project!(creator: owner, workspace: owner.personal_workspace, title: "Older studio")
+    newer = directory_project!(creator: owner, workspace: owner.personal_workspace, title: "Newer studio")
+    older.update_columns(created_at: 2.days.ago)
+    newer.update_columns(created_at: 1.hour.ago)
+    older.touch
+
+    get "/api/v1/explore/projects", headers: headers_for(viewer)
+
+    titles = response.parsed_body["projects"].map { |project| project["title"] }
+    expect(titles.index("Newer studio")).to be < titles.index("Older studio")
+  end
 end

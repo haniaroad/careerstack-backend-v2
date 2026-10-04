@@ -16,6 +16,7 @@ class TaskSerializer
       project_id: @task.project_id,
       project_title: @task.project.title,
       project_mode: @task.project.mode,
+      project_creator_id: @task.project.creator_id,
       assignee_id: @task.assignee_id,
       title: @task.title,
       acceptance_criteria: @task.acceptance_criteria,

@@ -24,6 +24,11 @@ module Api
         )
       end
 
+      def filter_options
+        require_onboarded!
+        render json: Explore::FilterOptions.call
+      end
+
       def invite_options
         require_onboarded!
         target = User.find_by(id: params.require(:user_id))

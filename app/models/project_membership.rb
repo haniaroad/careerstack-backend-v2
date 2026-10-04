@@ -37,7 +37,7 @@ class ProjectMembership < ApplicationRecord
   scope :creators, -> { where(role: ROLE_CREATOR) }
 
   def self.active_participation?(user)
-    active.exists?(user_id: user.id)
+    active.joins(:project).where(projects: { status: Project::STATUS_ACTIVE }).exists?(user_id: user.id)
   end
 
   def creator?

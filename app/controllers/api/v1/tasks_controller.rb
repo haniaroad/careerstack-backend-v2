@@ -24,11 +24,16 @@ module Api
       end
 
       def find_accessible_task!
-        workspace = require_workspace!
-        task = Task.in_workspace(workspace).find_by(id: params[:id])
+        task = Task.includes(:project).find_by(id: params[:id])
         raise ActiveRecord::RecordNotFound if task.nil?
-        raise ActiveRecord::RecordNotFound unless task.assignee_id == current_user.id ||
-          task.project.memberships.active.exists?(user_id: current_user.id)
+
+        project = task.project
+        raise ActiveRecord::RecordNotFound unless current_user.member_of_workspace?(project.workspace)
+
+        allowed = task.assignee_id == current_user.id ||
+          project.creator_id == current_user.id ||
+          project.memberships.active.exists?(user_id: current_user.id)
+        raise ActiveRecord::RecordNotFound unless allowed
 
         task
       end

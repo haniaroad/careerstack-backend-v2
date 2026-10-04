@@ -61,8 +61,16 @@ module Profiles
         skills: Array(project.skills),
         organization_name: project.workspace.organization&.name,
         ends_on: project.ends_on,
-        phase: project.phase
+        phase: project.phase,
+        visibility: project.visibility,
+        tasks: profile_tasks(project)
       }
+    end
+
+    def profile_tasks(project)
+      Task.where(project_id: project.id, assignee_id: @user.id).order(:position, :created_at).map do |task|
+        { id: task.id, title: task.title, status: task.status }
+      end
     end
   end
 end

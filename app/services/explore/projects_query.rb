@@ -20,7 +20,7 @@ module Explore
     end
 
     def call
-      scope = discoverable.order(updated_at: :desc)
+      scope = discoverable.order(created_at: :desc, id: :desc)
       total = scope.count
       rows = scope.offset((@page - 1) * @per_page).limit(@per_page)
       {
