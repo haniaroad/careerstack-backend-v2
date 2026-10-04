@@ -50,7 +50,7 @@ jobs:
             --region="${{ env.REGION }}" \
             --image="${{ env.IMAGE }}" \
             --port=3000 \
-            --update-env-vars="FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID}" \
+            --update-env-vars="FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID},REPORTS_INLINE_JOBS=true" \
             --quiet
 
       # Browser SPA auth uses Firebase Bearer tokens. Cloud Run must allow unauthenticated

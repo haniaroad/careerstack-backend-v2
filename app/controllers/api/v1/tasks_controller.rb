@@ -11,13 +11,13 @@ module Api
 
       def show
         task = find_accessible_task!
-        render json: { task: TaskSerializer.call(task, include_detail: true) }
+        render json: { task: TaskSerializer.call(task, include_detail: true, viewer: current_user) }
       end
 
       def update
         task = find_accessible_task!
         updated = Tasks::Update.call(task: task, actor: current_user, attrs: task_params)
-        render json: { task: TaskSerializer.call(updated, include_detail: true) }
+        render json: { task: TaskSerializer.call(updated, include_detail: true, viewer: current_user) }
       end
 
       def destroy
@@ -66,6 +66,8 @@ module Api
         if project.workspace.organization?
           return false unless current_user.member_of_workspace?(project.workspace)
         end
+
+        return true if current_user.can_access_org_admin_for?(project.workspace)
 
         task.assignee_id == current_user.id ||
           project.creator_id == current_user.id ||

@@ -49,7 +49,7 @@ class ProjectSerializer
       updated_at: @project.updated_at,
       memberships: active_memberships.map { |m| membership_json(m) }
     }
-    payload[:tasks] = @project.tasks.order(:position).map { |t| TaskSerializer.call(t) } if @include_tasks
+    payload[:tasks] = @project.tasks.order(:position).map { |t| TaskSerializer.call(t, viewer: @viewer) } if @include_tasks
 
     if @viewer && creator_viewer?
       applications = creator_applications

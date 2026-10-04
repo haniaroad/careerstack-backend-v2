@@ -11,7 +11,7 @@ module Api
         else
           updated = Tasks::Unassign.call(task: task, actor: current_user)
         end
-        render json: { task: TaskSerializer.call(updated) }
+        render json: { task: TaskSerializer.call(updated, viewer: current_user) }
       end
 
       private

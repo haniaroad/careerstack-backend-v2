@@ -2029,7 +2029,15 @@ paths:
           $ref: "#/components/responses/NotFound"
     patch:
       operationId: updateProjectDraft
-      summary: Update a draft project
+      summary: Update a draft project, or edit active project details
+      description: >
+        Draft updates stay creator-only and accept the draft field set.
+        Active projects accept title, summary, objective, definition_of_done,
+        ends_on, joining_mode, capacity, roles_needed, and visibility from the
+        creator, or from an organization admin or manager of that project's
+        organization. Mode, workspace, program, slug, and creator stay locked.
+        Capacity cannot drop below the current participant count. The project
+        must still be inside the end-date edit window.
       tags: [Projects]
       parameters:
         - name: id
@@ -2049,6 +2057,29 @@ paths:
                 summary:
                   type: string
                   nullable: true
+                objective:
+                  type: string
+                  nullable: true
+                definition_of_done:
+                  type: string
+                  nullable: true
+                ends_on:
+                  type: string
+                  format: date
+                joining_mode:
+                  type: string
+                  enum: [application, instant, invite_only]
+                capacity:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                roles_needed:
+                  type: array
+                  items:
+                    type: string
+                visibility:
+                  type: string
+                  enum: [public, private]
                 skills:
                   type: array
                   items:
@@ -2059,7 +2090,7 @@ paths:
                   nullable: true
       responses:
         "200":
-          description: Draft updated
+          description: Project updated
           content:
             application/json:
               schema:
