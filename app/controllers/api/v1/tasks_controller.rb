@@ -11,13 +11,13 @@ module Api
 
       def show
         task = find_accessible_task!
-        render json: { task: TaskSerializer.call(task, include_detail: true, viewer: current_user) }
+        render json: { task: TaskSerializer.call(task, include_detail: true, viewer: current_user, host: request.host_with_port) }
       end
 
       def update
         task = find_accessible_task!
         updated = Tasks::Update.call(task: task, actor: current_user, attrs: task_params)
-        render json: { task: TaskSerializer.call(updated, include_detail: true, viewer: current_user) }
+        render json: { task: TaskSerializer.call(updated, include_detail: true, viewer: current_user, host: request.host_with_port) }
       end
 
       def destroy

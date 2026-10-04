@@ -14,8 +14,8 @@ module Api
         )
 
         render json: {
-          task: TaskSerializer.call(result[:task], include_detail: true, viewer: current_user),
-          submission: TaskSubmissionSerializer.call(result[:submission]),
+          task: TaskSerializer.call(result[:task], include_detail: true, viewer: current_user, host: request.host_with_port),
+          submission: TaskSubmissionSerializer.call(result[:submission], host: request.host_with_port),
           review: result[:review] ? AiReviewSerializer.call(result[:review]) : nil
         }, status: :created
       end
