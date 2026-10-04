@@ -200,14 +200,17 @@ module Api
         raise ActiveRecord::RecordNotFound if project.nil?
 
         if project.workspace.organization_id.present?
-          raise ActiveRecord::RecordNotFound unless current_user.member_of_workspace?(project.workspace)
+          return project if current_user.member_of_workspace?(project.workspace)
+        elsif project.team? && project.active? && current_user.adult? && !current_user.pending_onboarding?
+          # Personal team projects: eligible adults may open active team projects by direct link.
           return project
         end
 
-        # Personal team projects: eligible adults may open joinable projects by direct link.
-        if project.team? && project.active? && current_user.adult? && !current_user.pending_onboarding?
-          return project
-        end
+        return project if Explore::ProjectsQuery.discoverable?(
+          viewer: current_user,
+          workspace: workspace,
+          project: project
+        )
 
         raise ActiveRecord::RecordNotFound
       end
