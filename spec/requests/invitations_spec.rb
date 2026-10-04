@@ -224,4 +224,25 @@ RSpec.describe "Invitations", type: :request do
       expect(invitee.organization_memberships.sole.role).to eq("admin")
     end
   end
+
+  describe "POST /api/v1/organizations/:id/invitations/:id/resend" do
+    it "resends the same pending invitation without creating another" do
+      admin.update!(active_workspace: organization.workspace)
+      post "/api/v1/invitations",
+           params: { organization_id: organization.id, email: "again@example.com" },
+           headers: headers_for(admin),
+           as: :json
+      invitation_id = response.parsed_body.dig("invitation", "id")
+      digest = Invitation.find(invitation_id).token_digest
+
+      expect {
+        post "/api/v1/organizations/#{organization.id}/invitations/#{invitation_id}/resend",
+             headers: headers_for(admin),
+             as: :json
+      }.not_to change(Invitation, :count)
+
+      expect(response).to have_http_status(:ok)
+      expect(Invitation.find(invitation_id).token_digest).not_to eq(digest)
+    end
+  end
 end

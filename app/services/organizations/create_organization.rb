@@ -38,6 +38,7 @@ module Organizations
           user: @user,
           role: "admin"
         )
+        @user.update!(active_workspace_id: workspace.id)
         trial_granted = Credits::GrantOrganizationTrial.call(user: @user, organization: organization)
 
         Result.new(

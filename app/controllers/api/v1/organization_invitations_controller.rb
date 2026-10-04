@@ -9,6 +9,15 @@ module Api
         invitations = invitations.where(program_id: params[:program_id]) if params[:program_id].present?
         render json: { invitations: invitations.map { |invitation| OrganizationInvitationSerializer.call(invitation) } }
       end
+
+      def resend
+        invitation = Invitations::Resend.call(
+          actor: current_user,
+          organization_id: params[:organization_id],
+          invitation_id: params[:id]
+        )
+        render json: { invitation: OrganizationInvitationSerializer.call(invitation) }
+      end
     end
   end
 end

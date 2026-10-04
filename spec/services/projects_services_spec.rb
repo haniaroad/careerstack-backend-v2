@@ -124,6 +124,22 @@ RSpec.describe "Projects services" do
         Projects::Cancel.call(project: project.reload, user: user)
       }.not_to change { Credits::Balance.remaining(owner: user) }
     end
+
+    it "ends active participation so the creator can confirm another project" do
+      user = create_onboarded_adult(email: "cancel-again@example.com")
+      project = with_ends_on!(Projects::CreateDraft.call(user: user, workspace: user.personal_workspace, title: "First active"))
+      Projects::Confirm.call(project: project, user: user)
+      Projects::Cancel.call(project: project.reload, user: user)
+
+      expect(ProjectMembership.active_participation?(user)).to be(false)
+
+      project.memberships.first.update!(status: ProjectMembership::STATUS_ACTIVE)
+      expect(ProjectMembership.active_participation?(user)).to be(false)
+
+      follow_up = with_ends_on!(Projects::CreateDraft.call(user: user, workspace: user.personal_workspace, title: "Second active"))
+      expect { Projects::Confirm.call(project: follow_up, user: user) }.not_to raise_error
+      expect(follow_up.reload.status).to eq(Project::STATUS_ACTIVE)
+    end
   end
 
   describe Projects::CreateDraft do
