@@ -35,9 +35,12 @@ module Api
       end
 
       def update
-        project = find_creator_project!
+        project = find_project_for_update!
 
         if project.draft?
+          unless project.creator_id == current_user.id
+            raise DomainError.new("Only the creator can edit a draft", code: "forbidden", status: :forbidden)
+          end
           updated = Projects::UpdateDraft.call(
             project: project,
             user: current_user,
@@ -61,26 +64,8 @@ module Api
           return render json: { project: ProjectSerializer.call(updated, viewer: current_user) }
         end
 
-        if params.key?(:visibility)
-          Projects::UpdateVisibility.call(
-            project: project,
-            user: current_user,
-            visibility: params[:visibility]
-          )
-          project.reload
-        end
-
-        if project.active? && params.key?(:ends_on)
-          project = Projects::UpdateEndsOn.call(
-            project: project,
-            user: current_user,
-            ends_on: params[:ends_on]
-          )
-        elsif !params.key?(:visibility)
-          raise DomainError.new("Only draft projects can be modified this way", code: "validation_error")
-        end
-
-        render json: { project: ProjectSerializer.call(project.reload, viewer: current_user) }
+        updated = Projects::UpdateActive.call(project: project, user: current_user, params: params)
+        render json: { project: ProjectSerializer.call(updated, viewer: current_user) }
       end
 
       def destroy
@@ -246,6 +231,14 @@ module Api
             project_memberships: { user_id: current_user.id }
           )
         end
+        raise ActiveRecord::RecordNotFound if project.nil?
+
+        project
+      end
+
+      def find_project_for_update!
+        workspace = require_workspace!
+        project = Project.in_workspace(workspace).find_by(id: params[:id])
         raise ActiveRecord::RecordNotFound if project.nil?
 
         project

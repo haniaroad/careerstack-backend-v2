@@ -6,10 +6,14 @@ module Projects
 
     def assert_can_join!(project:, user:)
       raise DomainError.new("Complete onboarding before joining projects", code: "onboarding_required", status: :forbidden) if user.pending_onboarding?
-      raise DomainError.new("Verified adult account required to join", code: "forbidden", status: :forbidden) unless user.adult?
-      raise DomainError.new("Suspended accounts cannot join projects", code: "forbidden", status: :forbidden) if user.suspended?
 
       workspace = project.workspace
+      org_member = workspace.organization_id.present? && user.member_of_workspace?(workspace)
+      unless user.adult? || org_member
+        raise DomainError.new("Verified adult account required to join", code: "forbidden", status: :forbidden)
+      end
+      raise DomainError.new("Suspended accounts cannot join projects", code: "forbidden", status: :forbidden) if user.suspended?
+
       if workspace.organization_id.present?
         unless user.member_of_workspace?(workspace)
           raise DomainError.new("Not a member of this organization workspace", code: "forbidden", status: :forbidden)

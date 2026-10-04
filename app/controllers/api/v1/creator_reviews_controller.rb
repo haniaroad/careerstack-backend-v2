@@ -11,7 +11,7 @@ module Api
           decision: params.require(:decision),
           feedback: params[:feedback]
         )
-        render json: { task: TaskSerializer.call(updated, include_detail: true) }
+        render json: { task: TaskSerializer.call(updated, include_detail: true, viewer: current_user) }
       end
 
       private

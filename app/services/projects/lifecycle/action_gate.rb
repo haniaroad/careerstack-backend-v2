@@ -13,7 +13,8 @@ module Projects
         :leave,
         :remove,
         :assign,
-        :update_ends_on
+        :update_ends_on,
+        :update_project
       ].freeze
 
       def self.assert!(project:, action:)
@@ -53,7 +54,7 @@ module Projects
           open_work_phase?
         when :submit, :review_decide, :leave, :remove
           finishing_phase?
-        when :update_ends_on
+        when :update_ends_on, :update_project
           finishing_phase? && !@project.past_final_expiration?
         else
           false
@@ -97,6 +98,8 @@ module Projects
           "Assignments are not allowed in this project phase"
         when :update_ends_on
           "End date cannot be changed in this project phase"
+        when :update_project
+          "Project details cannot be changed in this project phase"
         else
           "Action is not allowed in this project phase"
         end
