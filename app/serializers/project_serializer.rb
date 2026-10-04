@@ -49,15 +49,17 @@ class ProjectSerializer
       updated_at: @project.updated_at,
       memberships: active_memberships.map { |m| membership_json(m) }
     }
-    payload[:tasks] = @project.tasks.order(:position).map { |t| TaskSerializer.call(t) } if @include_tasks
+    payload[:tasks] = @project.tasks.order(:position).map { |t| TaskSerializer.call(t, viewer: @viewer) } if @include_tasks
 
     if @viewer && creator_viewer?
-      payload[:pending_applications] = @project.applications.pending.order(created_at: :desc).map { |a| application_json(a) }
+      applications = creator_applications
+      payload[:applications] = applications.map { |a| application_json(a) }
+      payload[:pending_applications] = applications.select(&:pending?).map { |a| application_json(a) }
       payload[:pending_invitations] = @project.invitations.pending.order(created_at: :desc).map { |i| invitation_json(i) }
     end
 
     if @viewer && !member_viewer? && @project.team?
-      pending_application = @project.applications.pending.find_by(user_id: @viewer.id)
+      pending_application = @project.applications.pending.find_by(applicant_id: @viewer.id)
       payload[:viewer_application_status] = pending_application ? "pending" : nil
       payload[:viewer_can_join] = @project.joinable? && pending_application.nil?
     end
@@ -73,6 +75,12 @@ class ProjectSerializer
 
   def active_memberships
     @project.memberships.active.includes(user: :profile).order(:created_at)
+  end
+
+  def creator_applications
+    @project.applications
+      .includes(applicant: :profile)
+      .order(Arel.sql("CASE WHEN project_applications.status = 'pending' THEN 0 ELSE 1 END"), created_at: :desc)
   end
 
   def creator_viewer?
@@ -104,14 +112,18 @@ class ProjectSerializer
       participant_role: membership.participant_role,
       status: membership.status,
       join_source: membership.join_source,
-      display_name: membership.user.profile&.display_name.presence || membership.user.email
+      display_name: display_name_for(membership.user),
+      profile_slug: profile_slug_for(membership.user)
     }
   end
 
   def application_json(application)
+    applicant = application.applicant
     {
       id: application.id,
       applicant_id: application.applicant_id,
+      applicant_display_name: display_name_for(applicant),
+      profile_slug: profile_slug_for(applicant),
       requested_role: application.requested_role,
       motivation: application.motivation,
       availability_confirmed: application.availability_confirmed,
@@ -132,5 +144,15 @@ class ProjectSerializer
       status: invitation.status,
       created_at: invitation.created_at
     }
+  end
+
+  def display_name_for(user)
+    user.profile&.display_name.presence || user.email
+  end
+
+  def profile_slug_for(user)
+    return nil unless Profiles::Visibility.public_adult?(user)
+
+    user.profile&.slug
   end
 end

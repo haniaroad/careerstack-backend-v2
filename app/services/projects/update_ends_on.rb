@@ -39,8 +39,8 @@ module Projects
     private
 
     def authorize!
-      unless @project.creator_id == @user.id
-        raise DomainError.new("Only the creator can update the end date", code: "forbidden", status: :forbidden)
+      unless Projects::Editor.allowed?(project: @project, user: @user)
+        raise DomainError.new("You cannot edit this project", code: "forbidden", status: :forbidden)
       end
       unless @user.member_of_workspace?(@project.workspace)
         raise DomainError.new("Not a member of this workspace", code: "forbidden", status: :forbidden)

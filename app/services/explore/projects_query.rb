@@ -12,6 +12,16 @@ module Explore
       new(viewer: viewer, workspace: workspace, filters: filters, page: page, per_page: per_page).call
     end
 
+    # True when this project would appear in Explore for the viewer's active workspace,
+    # ignoring search filters. Used so opening a card uses the same visibility rules as the list.
+    def self.discoverable?(viewer:, workspace:, project:)
+      return false if project.nil?
+
+      new(viewer: viewer, workspace: workspace, filters: {}, page: 1, per_page: 1)
+        .discoverable_relation
+        .exists?(id: project.id)
+    end
+
     def initialize(viewer:, workspace:, filters:, page:, per_page:)
       @viewer = viewer
       @workspace = workspace
@@ -31,13 +41,14 @@ module Explore
       }
     end
 
+    def discoverable_relation
+      apply_workspace(Project.where(status: DISCOVERABLE_STATUSES))
+    end
+
     private
 
     def discoverable
-      scope = Project.where(status: DISCOVERABLE_STATUSES)
-      scope = apply_workspace(scope)
-      scope = apply_filters(scope)
-      scope
+      apply_filters(discoverable_relation)
     end
 
     def apply_workspace(scope)

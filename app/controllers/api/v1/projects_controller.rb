@@ -35,9 +35,12 @@ module Api
       end
 
       def update
-        project = find_creator_project!
+        project = find_project_for_update!
 
         if project.draft?
+          unless project.creator_id == current_user.id
+            raise DomainError.new("Only the creator can edit a draft", code: "forbidden", status: :forbidden)
+          end
           updated = Projects::UpdateDraft.call(
             project: project,
             user: current_user,
@@ -61,26 +64,8 @@ module Api
           return render json: { project: ProjectSerializer.call(updated, viewer: current_user) }
         end
 
-        if params.key?(:visibility)
-          Projects::UpdateVisibility.call(
-            project: project,
-            user: current_user,
-            visibility: params[:visibility]
-          )
-          project.reload
-        end
-
-        if project.active? && params.key?(:ends_on)
-          project = Projects::UpdateEndsOn.call(
-            project: project,
-            user: current_user,
-            ends_on: params[:ends_on]
-          )
-        elsif !params.key?(:visibility)
-          raise DomainError.new("Only draft projects can be modified this way", code: "validation_error")
-        end
-
-        render json: { project: ProjectSerializer.call(project.reload, viewer: current_user) }
+        updated = Projects::UpdateActive.call(project: project, user: current_user, params: params)
+        render json: { project: ProjectSerializer.call(updated, viewer: current_user) }
       end
 
       def destroy
@@ -178,6 +163,19 @@ module Api
       end
 
       def visible_projects(workspace)
+        in_workspace = workspace_projects(workspace)
+        return in_workspace unless workspace.personal?
+
+        joined_personal_ids = Project
+          .joins(:workspace, :memberships)
+          .where(workspaces: { kind: "personal" })
+          .where(project_memberships: { user_id: current_user.id, status: ProjectMembership::STATUS_ACTIVE })
+          .select(:id)
+
+        Project.where(id: in_workspace.select(:id)).or(Project.where(id: joined_personal_ids))
+      end
+
+      def workspace_projects(workspace)
         scope = Project.in_workspace(workspace)
         if workspace.organization?
           membership = current_user.membership_for(workspace.organization)
@@ -200,14 +198,17 @@ module Api
         raise ActiveRecord::RecordNotFound if project.nil?
 
         if project.workspace.organization_id.present?
-          raise ActiveRecord::RecordNotFound unless current_user.member_of_workspace?(project.workspace)
+          return project if current_user.member_of_workspace?(project.workspace)
+        elsif project.team? && project.active? && current_user.adult? && !current_user.pending_onboarding?
+          # Personal team projects: eligible adults may open active team projects by direct link.
           return project
         end
 
-        # Personal team projects: eligible adults may open joinable projects by direct link.
-        if project.team? && project.active? && current_user.adult? && !current_user.pending_onboarding?
-          return project
-        end
+        return project if Explore::ProjectsQuery.discoverable?(
+          viewer: current_user,
+          workspace: workspace,
+          project: project
+        )
 
         raise ActiveRecord::RecordNotFound
       end
@@ -230,6 +231,14 @@ module Api
             project_memberships: { user_id: current_user.id }
           )
         end
+        raise ActiveRecord::RecordNotFound if project.nil?
+
+        project
+      end
+
+      def find_project_for_update!
+        workspace = require_workspace!
+        project = Project.in_workspace(workspace).find_by(id: params[:id])
         raise ActiveRecord::RecordNotFound if project.nil?
 
         project

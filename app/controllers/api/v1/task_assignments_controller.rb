@@ -11,7 +11,7 @@ module Api
         else
           updated = Tasks::Unassign.call(task: task, actor: current_user)
         end
-        render json: { task: TaskSerializer.call(updated) }
+        render json: { task: TaskSerializer.call(updated, viewer: current_user) }
       end
 
       private
@@ -19,7 +19,15 @@ module Api
       def find_task!
         task = Task.includes(:project).find_by(id: params[:task_id])
         raise ActiveRecord::RecordNotFound if task.nil?
-        raise ActiveRecord::RecordNotFound unless current_user.member_of_workspace?(task.project.workspace)
+
+        project = task.project
+        if project.workspace.organization?
+          raise ActiveRecord::RecordNotFound unless current_user.member_of_workspace?(project.workspace)
+        else
+          allowed = project.creator_id == current_user.id ||
+            project.memberships.active.exists?(user_id: current_user.id)
+          raise ActiveRecord::RecordNotFound unless allowed
+        end
 
         task
       end

@@ -1,13 +1,14 @@
 # frozen_string_literal: true
 
 class TaskSerializer
-  def self.call(task, include_detail: false)
-    new(task, include_detail: include_detail).as_json
+  def self.call(task, include_detail: false, viewer: nil)
+    new(task, include_detail: include_detail, viewer: viewer).as_json
   end
 
-  def initialize(task, include_detail: false)
+  def initialize(task, include_detail: false, viewer: nil)
     @task = task
     @include_detail = include_detail
+    @viewer = viewer
   end
 
   def as_json
@@ -16,12 +17,15 @@ class TaskSerializer
       project_id: @task.project_id,
       project_title: @task.project.title,
       project_mode: @task.project.mode,
+      project_status: @task.project.status,
+      project_phase: @task.project.phase,
       project_creator_id: @task.project.creator_id,
       assignee_id: @task.assignee_id,
       title: @task.title,
       acceptance_criteria: @task.acceptance_criteria,
       submission_expectations: @task.submission_expectations,
       due_on: @task.due_on,
+      reference_video_url: @task.reference_video_url,
       status: @task.status,
       position: @task.position,
       first_submitted_at: @task.first_submitted_at,
@@ -32,7 +36,8 @@ class TaskSerializer
       creator_reviewed_by_id: @task.creator_reviewed_by_id,
       creator_reviewed_at: @task.creator_reviewed_at,
       created_at: @task.created_at,
-      updated_at: @task.updated_at
+      updated_at: @task.updated_at,
+      viewer_can_claim: viewer_can_claim?
     }
 
     if @include_detail
@@ -42,5 +47,19 @@ class TaskSerializer
     end
 
     payload
+  end
+
+  private
+
+  def viewer_can_claim?
+    return false if @viewer.nil?
+
+    project = @task.project
+    return false unless project.team?
+    return false unless @task.pending?
+    return false if @task.assignee_id.present?
+    return false if project.creator_id == @viewer.id
+
+    project.memberships.active.exists?(user_id: @viewer.id)
   end
 end

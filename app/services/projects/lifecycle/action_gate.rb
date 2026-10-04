@@ -6,12 +6,15 @@ module Projects
       ACTIONS = [
         :join,
         :create_task,
+        :update_task,
+        :delete_task,
         :submit,
         :review_decide,
         :leave,
         :remove,
         :assign,
-        :update_ends_on
+        :update_ends_on,
+        :update_project
       ].freeze
 
       def self.assert!(project:, action:)
@@ -47,11 +50,11 @@ module Projects
         case @action
         when :join
           open_work_phase?
-        when :create_task, :assign
+        when :create_task, :update_task, :delete_task, :assign
           open_work_phase?
         when :submit, :review_decide, :leave, :remove
           finishing_phase?
-        when :update_ends_on
+        when :update_ends_on, :update_project
           finishing_phase? && !@project.past_final_expiration?
         else
           false
@@ -79,6 +82,10 @@ module Projects
           "Joining is closed for this project phase"
         when :create_task
           "New tasks cannot be created in this project phase"
+        when :update_task
+          "Tasks cannot be edited in this project phase"
+        when :delete_task
+          "Tasks cannot be deleted in this project phase"
         when :submit
           "Submissions are not allowed in this project phase"
         when :review_decide
@@ -91,6 +98,8 @@ module Projects
           "Assignments are not allowed in this project phase"
         when :update_ends_on
           "End date cannot be changed in this project phase"
+        when :update_project
+          "Project details cannot be changed in this project phase"
         else
           "Action is not allowed in this project phase"
         end

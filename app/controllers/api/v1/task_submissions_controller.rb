@@ -14,7 +14,7 @@ module Api
         )
 
         render json: {
-          task: TaskSerializer.call(result[:task], include_detail: true),
+          task: TaskSerializer.call(result[:task], include_detail: true, viewer: current_user),
           submission: TaskSubmissionSerializer.call(result[:submission]),
           review: result[:review] ? AiReviewSerializer.call(result[:review]) : nil
         }, status: :created
@@ -23,11 +23,15 @@ module Api
       private
 
       def find_assignee_task!
-        workspace = current_user.resolved_active_workspace
-        raise DomainError.new("No active workspace", code: "no_workspace") if workspace.nil?
-
-        task = Task.in_workspace(workspace).find_by(id: params[:task_id], assignee_id: current_user.id)
+        task = Task.includes(:project).find_by(id: params[:task_id], assignee_id: current_user.id)
         raise ActiveRecord::RecordNotFound if task.nil?
+
+        project = task.project
+        if project.workspace.organization?
+          raise ActiveRecord::RecordNotFound unless current_user.member_of_workspace?(project.workspace)
+        elsif !project.memberships.active.exists?(user_id: current_user.id)
+          raise ActiveRecord::RecordNotFound
+        end
 
         task
       end

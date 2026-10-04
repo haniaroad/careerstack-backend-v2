@@ -199,4 +199,26 @@ RSpec.describe "Organization reporting", type: :request do
     expect(internships["count"]).to eq(1)
     expect(internships["reporting_label"]).to eq("self_reported")
   end
+
+  it "fails a generating snapshot after two minutes and allows another generate" do
+    post "/api/v1/organizations/#{organization.id}/reports",
+         params: create_params(format: "csv", aggregate_only: true),
+         headers: org_headers(admin),
+         as: :json
+    expect(response).to have_http_status(:created)
+    report_id = response.parsed_body.dig("report", "id")
+    report = OrganizationReport.find(report_id)
+    report.update!(status: OrganizationReport::STATUS_GENERATING, error_code: nil)
+    report.update_columns(updated_at: 3.minutes.ago)
+
+    get "/api/v1/organizations/#{organization.id}/reports", headers: org_headers(admin)
+    expect(response).to have_http_status(:ok)
+    listed = response.parsed_body["reports"].find { |row| row["id"] == report_id }
+    expect(listed["status"]).to eq("failed")
+    expect(listed["error_code"]).to eq("generate_timeout")
+
+    post "/api/v1/organization_reports/#{report_id}/generate", headers: org_headers(admin), as: :json
+    expect(response).to have_http_status(:ok)
+    expect(response.parsed_body.dig("report", "status")).to eq("ready")
+  end
 end

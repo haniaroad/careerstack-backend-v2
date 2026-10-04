@@ -106,8 +106,11 @@ module Tasks
 
     def authorize!
       raise DomainError.new("Only the assignee can submit this task", code: "forbidden", status: :forbidden) unless @task.assignee_id == @user.id
-      raise DomainError.new("Not a member of this workspace", code: "forbidden", status: :forbidden) unless @user.member_of_workspace?(@task.project.workspace)
-      membership = @task.project.memberships.active.find_by(user_id: @user.id)
+      project = @task.project
+      if project.workspace.organization? && !@user.member_of_workspace?(project.workspace)
+        raise DomainError.new("Not a member of this workspace", code: "forbidden", status: :forbidden)
+      end
+      membership = project.memberships.active.find_by(user_id: @user.id)
       raise DomainError.new("Not a project participant", code: "forbidden", status: :forbidden) if membership.nil?
       @task.project.ensure_lifecycle_current!
     end
