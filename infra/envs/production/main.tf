@@ -1,0 +1,453 @@
+locals {
+  name_prefix = "careerstack-prod"
+  labels = {
+    app         = "careerstack"
+    environment = "production"
+    managed_by  = "opentofu"
+  }
+}
+
+resource "google_artifact_registry_repository" "api" {
+  location      = var.region
+  repository_id = "careerstack-api"
+  description   = "CareerStack API container images (production)"
+  format        = "DOCKER"
+  labels        = local.labels
+}
+
+resource "google_service_account" "runtime" {
+  account_id   = "careerstack-api-runtime"
+  display_name = "CareerStack API runtime (production)"
+}
+
+resource "google_service_account" "deploy" {
+  account_id   = "careerstack-github-deploy"
+  display_name = "CareerStack GitHub Actions deploy (production)"
+}
+
+resource "google_project_iam_member" "runtime_sql_client" {
+  project = var.project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${google_service_account.runtime.email}"
+}
+
+resource "google_project_iam_member" "runtime_secret_accessor" {
+  project = var.project_id
+  role    = "roles/secretmanager.secretAccessor"
+  member  = "serviceAccount:${google_service_account.runtime.email}"
+}
+
+resource "google_project_iam_member" "runtime_storage" {
+  project = var.project_id
+  role    = "roles/storage.objectAdmin"
+  member  = "serviceAccount:${google_service_account.runtime.email}"
+}
+
+# Active Storage signs GCS URLs with the runtime service account itself.
+resource "google_service_account_iam_member" "runtime_sign_blob" {
+  service_account_id = google_service_account.runtime.name
+  role               = "roles/iam.serviceAccountTokenCreator"
+  member             = "serviceAccount:${google_service_account.runtime.email}"
+}
+
+resource "google_project_iam_member" "deploy_run_admin" {
+  project = var.project_id
+  role    = "roles/run.admin"
+  member  = "serviceAccount:${google_service_account.deploy.email}"
+}
+
+resource "google_project_iam_member" "deploy_ar_writer" {
+  project = var.project_id
+  role    = "roles/artifactregistry.writer"
+  member  = "serviceAccount:${google_service_account.deploy.email}"
+}
+
+resource "google_project_iam_member" "deploy_sa_user" {
+  project = var.project_id
+  role    = "roles/iam.serviceAccountUser"
+  member  = "serviceAccount:${google_service_account.deploy.email}"
+}
+
+resource "google_project_iam_member" "deploy_sql_client" {
+  project = var.project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${google_service_account.deploy.email}"
+}
+
+resource "google_sql_database_instance" "primary" {
+  name             = "${local.name_prefix}-pg"
+  database_version = "POSTGRES_16"
+  region           = var.region
+
+  settings {
+    tier                        = var.db_tier
+    edition                     = "ENTERPRISE"
+    availability_type           = "ZONAL"
+    disk_size                   = 10
+    disk_type                   = "PD_HDD"
+    deletion_protection_enabled = true
+
+    ip_configuration {
+      ipv4_enabled = true
+    }
+
+    backup_configuration {
+      enabled    = true
+      start_time = "07:00"
+    }
+
+    user_labels = local.labels
+  }
+
+  deletion_protection = true
+}
+
+resource "google_sql_database" "app" {
+  name     = "careerstack"
+  instance = google_sql_database_instance.primary.name
+}
+
+resource "google_sql_database" "queue" {
+  name     = "careerstack_queue"
+  instance = google_sql_database_instance.primary.name
+}
+
+resource "random_password" "db" {
+  length  = 32
+  special = false
+}
+
+resource "google_sql_user" "app" {
+  name     = "careerstack"
+  instance = google_sql_database_instance.primary.name
+  password = random_password.db.result
+}
+
+resource "google_storage_bucket" "app" {
+  name                        = "${var.project_id}-app-private"
+  location                    = var.region
+  uniform_bucket_level_access = true
+  public_access_prevention    = "enforced"
+  force_destroy               = false
+
+  labels = local.labels
+}
+
+resource "google_secret_manager_secret" "database_url" {
+  secret_id = "database-url"
+  replication {
+    auto {}
+  }
+  labels = local.labels
+}
+
+resource "google_secret_manager_secret" "queue_database_url" {
+  secret_id = "queue-database-url"
+  replication {
+    auto {}
+  }
+  labels = local.labels
+}
+
+resource "google_secret_manager_secret" "secret_key_base" {
+  secret_id = "secret-key-base"
+  replication {
+    auto {}
+  }
+  labels = local.labels
+}
+
+resource "google_secret_manager_secret" "sentry_dsn" {
+  secret_id = "sentry-dsn"
+  replication {
+    auto {}
+  }
+  labels = local.labels
+}
+
+resource "google_secret_manager_secret_version" "database_url" {
+  secret = google_secret_manager_secret.database_url.id
+  # Use localhost + host query for Cloud SQL unix socket; empty-host URLs break Ruby URI.
+  secret_data = "postgresql://${google_sql_user.app.name}:${random_password.db.result}@localhost/${google_sql_database.app.name}?host=/cloudsql/${google_sql_database_instance.primary.connection_name}"
+}
+
+resource "google_secret_manager_secret_version" "queue_database_url" {
+  secret      = google_secret_manager_secret.queue_database_url.id
+  secret_data = "postgresql://${google_sql_user.app.name}:${random_password.db.result}@localhost/${google_sql_database.queue.name}?host=/cloudsql/${google_sql_database_instance.primary.connection_name}"
+}
+
+resource "random_password" "secret_key_base" {
+  length  = 64
+  special = false
+}
+
+resource "google_secret_manager_secret_version" "secret_key_base" {
+  secret      = google_secret_manager_secret.secret_key_base.id
+  secret_data = random_password.secret_key_base.result
+}
+
+resource "google_secret_manager_secret_version" "sentry_dsn_placeholder" {
+  secret      = google_secret_manager_secret.sentry_dsn.id
+  secret_data = "pending"
+}
+
+resource "google_cloud_run_v2_service" "api" {
+  name     = "careerstack-api"
+  location = var.region
+  ingress  = "INGRESS_TRAFFIC_ALL"
+
+  template {
+    service_account = google_service_account.runtime.email
+
+    scaling {
+      min_instance_count = 0
+      max_instance_count = 2
+    }
+
+    volumes {
+      name = "cloudsql"
+      cloud_sql_instance {
+        instances = [google_sql_database_instance.primary.connection_name]
+      }
+    }
+
+    containers {
+      image = var.image
+
+      # Placeholder hello image listens on 8080; first CI deploy replaces image + port 3000.
+      ports {
+        container_port = 8080
+      }
+
+      env {
+        name  = "RAILS_ENV"
+        value = "production"
+      }
+
+      env {
+        name  = "FIREBASE_PROJECT_ID"
+        value = var.firebase_project_id
+      }
+
+      env {
+        name  = "CORS_ORIGINS"
+        value = "https://app.careerstack.co,https://admin.careerstack.co,http://localhost:5173,http://localhost:4173"
+      }
+
+      env {
+        name  = "APP_ORIGIN"
+        value = "https://app.careerstack.co"
+      }
+
+      env {
+        name  = "REPORTS_INLINE_JOBS"
+        value = "true"
+      }
+
+      env {
+        name  = "EMAIL_INLINE_JOBS"
+        value = "true"
+      }
+
+      env {
+        name  = "AI_INLINE_JOBS"
+        value = "true"
+      }
+
+      env {
+        name  = "AI_KILL_SWITCH"
+        value = "false"
+      }
+
+      env {
+        name  = "AI_BUDGET_STOP"
+        value = "false"
+      }
+
+      env {
+        name  = "OPENROUTER_BASE_URL"
+        value = "https://openrouter.ai/api/v1"
+      }
+
+      env {
+        name  = "GCS_PROJECT_ID"
+        value = var.project_id
+      }
+
+      env {
+        name  = "GCS_BUCKET"
+        value = google_storage_bucket.app.name
+      }
+
+      env {
+        name  = "GCS_SERVICE_ACCOUNT_EMAIL"
+        value = google_service_account.runtime.email
+      }
+
+      env {
+        name  = "STRIPE_CHECKOUT_SUCCESS_URL"
+        value = "https://app.careerstack.co/billing/return?status=success&session_id={CHECKOUT_SESSION_ID}"
+      }
+
+      env {
+        name  = "STRIPE_CHECKOUT_CANCEL_URL"
+        value = "https://app.careerstack.co/billing/return?status=cancelled"
+      }
+
+      env {
+        name = "DATABASE_URL"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.database_url.secret_id
+            version = "latest"
+          }
+        }
+      }
+
+      env {
+        name = "QUEUE_DATABASE_URL"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.queue_database_url.secret_id
+            version = "latest"
+          }
+        }
+      }
+
+      env {
+        name = "SECRET_KEY_BASE"
+        value_source {
+          secret_key_ref {
+            secret  = google_secret_manager_secret.secret_key_base.secret_id
+            version = "latest"
+          }
+        }
+      }
+
+      volume_mounts {
+        name       = "cloudsql"
+        mount_path = "/cloudsql"
+      }
+    }
+  }
+
+  labels = local.labels
+
+  # CI (deploy-production) owns the real image + container port after first rollout.
+  # Keep the hello/8080 defaults for bootstrap only; do not let tofu apply revert them.
+  lifecycle {
+    ignore_changes = [
+      template[0].containers[0].image,
+      template[0].containers[0].ports,
+    ]
+  }
+
+  depends_on = [
+    google_secret_manager_secret_version.database_url,
+    google_secret_manager_secret_version.queue_database_url,
+    google_secret_manager_secret_version.secret_key_base,
+  ]
+}
+
+# Public browser clients (Netlify) call this API with Firebase ID tokens, not
+# Google IAM identity tokens. Cloud Run must allow unauthenticated invocation so
+# requests reach Rails; Rails then enforces Firebase verification.
+#
+# Blocked by default by org policy (domain-restricted sharing). Set
+# allow_unauthenticated_invoker=true in terraform.tfvars only after the console
+# exception in infra/README.md, then re-apply.
+resource "google_cloud_run_v2_service_iam_member" "public_invoker" {
+  count = var.allow_unauthenticated_invoker ? 1 : 0
+
+  project  = var.project_id
+  location = google_cloud_run_v2_service.api.location
+  name     = google_cloud_run_v2_service.api.name
+  role     = "roles/run.invoker"
+  member   = "allUsers"
+}
+
+resource "google_iam_workload_identity_pool" "github" {
+  workload_identity_pool_id = "github-actions"
+  display_name              = "GitHub Actions"
+}
+
+resource "google_iam_workload_identity_pool_provider" "github" {
+  workload_identity_pool_id          = google_iam_workload_identity_pool.github.workload_identity_pool_id
+  workload_identity_pool_provider_id = "github"
+  display_name                       = "GitHub OIDC"
+
+  attribute_mapping = {
+    "google.subject"       = "assertion.sub"
+    "attribute.actor"      = "assertion.actor"
+    "attribute.repository" = "assertion.repository"
+    "attribute.ref"        = "assertion.ref"
+  }
+
+  attribute_condition = "assertion.repository_owner == '${var.github_org}'"
+  oidc {
+    issuer_uri = "https://token.actions.githubusercontent.com"
+  }
+}
+
+resource "google_service_account_iam_member" "wif_backend" {
+  service_account_id = google_service_account.deploy.name
+  role               = "roles/iam.workloadIdentityUser"
+  member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github.name}/attribute.repository/${var.github_org}/${var.github_backend_repo}"
+}
+
+resource "google_service_account_iam_member" "wif_frontend" {
+  service_account_id = google_service_account.deploy.name
+  role               = "roles/iam.workloadIdentityUser"
+  member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github.name}/attribute.repository/${var.github_org}/${var.github_frontend_repo}"
+}
+
+resource "google_monitoring_uptime_check_config" "api_health" {
+  display_name = "careerstack-api-health"
+  timeout      = "10s"
+  period       = "60s"
+
+  http_check {
+    path         = "/health"
+    port         = "443"
+    use_ssl      = true
+    validate_ssl = true
+  }
+
+  monitored_resource {
+    type = "uptime_url"
+    labels = {
+      project_id = var.project_id
+      host       = trimprefix(google_cloud_run_v2_service.api.uri, "https://")
+    }
+  }
+}
+
+resource "google_billing_budget" "production" {
+  count = var.billing_account == "" ? 0 : 1
+
+  billing_account = var.billing_account
+  display_name    = "careerstack-prod-monthly"
+
+  budget_filter {
+    projects = ["projects/${var.project_number}"]
+  }
+
+  amount {
+    specified_amount {
+      currency_code = "USD"
+      units         = tostring(var.budget_amount_usd)
+    }
+  }
+
+  threshold_rules {
+    threshold_percent = 0.5
+  }
+
+  threshold_rules {
+    threshold_percent = 0.9
+  }
+
+  threshold_rules {
+    threshold_percent = 1.0
+  }
+}

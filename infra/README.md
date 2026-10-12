@@ -1,6 +1,6 @@
 # CareerStack infrastructure (OpenTofu)
 
-OpenTofu root for GCP staging lives under `envs/staging`. Production modules are intentionally **not applied** in the `establish-platform-foundation` change.
+OpenTofu roots live under `envs/staging` and `envs/production`. Staging auto-deploys from `main`. Production infrastructure is applied from the operator laptop; the application image is released only by the `workflow_dispatch` production workflows.
 
 ## Prerequisites
 
@@ -45,11 +45,64 @@ OpenTofu intentionally ignores subsequent drift on:
 
 so a later `tofu apply` does not replace the CI-deployed API with `hello` / `8080`. To change image or port, use the staging deploy workflow (or `gcloud run services update`), not OpenTofu.
 
+## Production apply (operator laptop)
+
+`careerstack-prod` (project number `732555935345`) is the production GCP project. OpenTofu creates Cloud Run, Cloud SQL, Artifact Registry, the private bucket, Secret Manager, and Workload Identity inside that project. Do not create those resources by hand in the Cloud Run console.
+
+There is no long-lived `staging` git branch. Merges to `main` deploy staging. Production app releases stay on **Actions → Deploy production → Run workflow**, which waits for the GitHub Environment `production` reviewer.
+
+### One-time console prerequisites
+
+1. **State bucket** (same pattern as staging; OpenTofu cannot create the bucket that holds its own state):
+   ```bash
+   gcloud config set project careerstack-prod
+   gcloud storage buckets create gs://careerstack-tfstate-prod \
+     --location=us-east5 \
+     --uniform-bucket-level-access \
+     --public-access-prevention
+   ```
+2. **APIs** used by the module:
+   ```bash
+   gcloud services enable \
+     run.googleapis.com \
+     sqladmin.googleapis.com \
+     artifactregistry.googleapis.com \
+     secretmanager.googleapis.com \
+     iam.googleapis.com \
+     cloudresourcemanager.googleapis.com \
+     serviceusage.googleapis.com \
+     monitoring.googleapis.com \
+     billingbudgets.googleapis.com \
+     storage.googleapis.com \
+     iamcredentials.googleapis.com
+   ```
+3. **Org policy exception** so browsers can call Cloud Run with Firebase tokens. Repeat the staging checklist below for project `careerstack-prod`. Until it exists, leave `allow_unauthenticated_invoker = false`. After the exception propagates, set it to `true` in `envs/production/terraform.tfvars` and apply again.
+4. **Firebase.** Create a production Firebase project. Do not reuse `careerstack-staging`. The default OpenTofu value is `firebase_project_id = "careerstack-prod"` (Firebase added to this GCP project). Authorized domains: `app.careerstack.co` and the production Netlify hostname. Put the web config on the frontend GitHub Environment `production`, and `FIREBASE_PROJECT_ID` on the backend environment.
+5. **Netlify production site.** Create a new site with manual deploys and no Git connection. Do not attach `app.careerstack.co` to `careerstack-frontend-v2.netlify.app` — that site is staging, and every `main` merge publishes it. Add custom domain `app.careerstack.co` on the new site and the DNS record Netlify shows. `admin.careerstack.co` stays a separate site.
+6. **GitHub Environment `production`** (both repos already require reviewer `haniaroad`). After `tofu output`:
+   - Backend variables: `GCP_WORKLOAD_IDENTITY_PROVIDER`, `GCP_DEPLOY_SERVICE_ACCOUNT`, `FIREBASE_PROJECT_ID`, `GCS_PROJECT_ID`, `GCS_BUCKET`, `GCS_SERVICE_ACCOUNT_EMAIL`
+   - Backend secrets, when live checkout, mail, and AI should work: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PERSONAL_PACK_PRICE_ID`, `MAILGUN_API_KEY`, optional `MAILGUN_DOMAIN` / `MAILGUN_FROM` (default `careerstack.co` / `hello@careerstack.co`), `OPENROUTER_API_KEY`
+   - Frontend: the Netlify token stays on the staging environment (`NETLIFY_AUTH_TOKEN`). Repository variables `PRODUCTION_NETLIFY_SITE_ID`, `PRODUCTION_VITE_API_BASE_URL` (Cloud Run URL), `PRODUCTION_VITE_FIREBASE_API_KEY`, `PRODUCTION_VITE_FIREBASE_AUTH_DOMAIN`, `PRODUCTION_VITE_FIREBASE_PROJECT_ID`, `PRODUCTION_VITE_FIREBASE_APP_ID`, optional `PRODUCTION_SITE_URL`, `PRODUCTION_VITE_MIXPANEL_TOKEN`, `PRODUCTION_VITE_SENTRY_DSN`. **Deploy production** approves on the `production` environment, then publishes with those variables.
+7. **Stripe live webhook** (when live keys are in use): `POST https://<prod-cloud-run-host>/api/v1/stripe/webhooks`.
+
+A later `tofu apply` resets Cloud Run env vars to the OpenTofu set and drops workflow-managed secrets (Stripe, Mailgun, OpenRouter). Re-run **Deploy production** after an apply that touches the service.
+
+### Apply
+
+```bash
+cd infra/envs/production
+tofu init
+tofu plan
+tofu apply
+tofu output
+```
+
+Cloud SQL has deletion protection and daily backups. The private bucket does not force-destroy. The service boots the public `hello` image until the first production workflow deploy, which replaces the image and port `3000`. `bin/docker-entrypoint` runs `db:prepare` on boot. No Solid Queue worker service is deployed; inline job flags stay on.
+
 ## What this change does not do
 
-- No `tofu apply` against `careerstack-prod`
-- No production Cloud Run / Cloud SQL / Netlify production cutover
 - No deployed Solid Queue worker service
+- No `admin.careerstack.co` Netlify site in this cutover
 
 ## Org policy note — public Cloud Run invoker (required for Netlify SPA)
 
