@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_10_04_180000) do
+ActiveRecord::Schema[8.0].define(version: 2026_10_12_200524) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -136,7 +136,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_04_180000) do
     t.index ["status"], name: "index_ai_reviews_on_status"
     t.index ["task_id", "status"], name: "index_ai_reviews_on_task_id_and_status"
     t.index ["task_id"], name: "index_ai_reviews_on_task_id"
-    t.index ["task_id"], name: "index_ai_reviews_one_active_per_task", unique: true, where: "((status)::text = ANY ((ARRAY['pending'::character varying, 'running'::character varying])::text[]))"
+    t.index ["task_id"], name: "index_ai_reviews_one_active_per_task", unique: true, where: "((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('running'::character varying)::text]))"
     t.index ["task_submission_id"], name: "index_ai_reviews_on_task_submission_id"
     t.index ["user_id", "created_at"], name: "index_ai_reviews_on_user_id_and_created_at"
     t.index ["user_id"], name: "index_ai_reviews_on_user_id"
@@ -460,6 +460,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_04_180000) do
     t.string "workspace_status", default: "active", null: false
     t.datetime "offboarding_started_at"
     t.date "offboarding_ends_on"
+    t.uuid "creator_id"
+    t.index ["creator_id"], name: "index_organizations_on_creator_id"
     t.index ["primary_goal_term_id"], name: "index_organizations_on_primary_goal_term_id"
     t.index ["structure_term_id"], name: "index_organizations_on_structure_term_id"
     t.index ["workspace_status"], name: "index_organizations_on_workspace_status"
@@ -900,6 +902,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_04_180000) do
   add_foreign_key "organization_upgrade_requests", "users", column: "requesting_user_id"
   add_foreign_key "organizations", "taxonomy_terms", column: "primary_goal_term_id"
   add_foreign_key "organizations", "taxonomy_terms", column: "structure_term_id"
+  add_foreign_key "organizations", "users", column: "creator_id"
   add_foreign_key "peer_review_reports", "peer_reviews"
   add_foreign_key "peer_review_reports", "users", column: "reporter_id"
   add_foreign_key "peer_reviews", "projects"

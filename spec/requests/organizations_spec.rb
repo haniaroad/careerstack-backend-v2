@@ -65,10 +65,11 @@ RSpec.describe "Organization creation", type: :request do
       name: "Legacy Org",
       country: "US",
       state_region: "CA",
-      structure_term_id: structure_term("nonprofit").id,
-      primary_goal_term_id: goal_term("education").id,
+      structure_term_id: structure_term.id,
+      primary_goal_term_id: goal_term.id,
       creator_id: nil  # Simulate legacy data
     )
+    Workspaces::EnsureOrganization.call(organization: legacy_org)
     OrganizationMembership.create!(
       organization: legacy_org,
       user: user,

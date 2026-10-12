@@ -1,8 +1,8 @@
 class AddCreatorToOrganizations < ActiveRecord::Migration[8.0]
   def up
     # Add creator_id column (nullable during migration to allow existing orgs)
+    # add_reference automatically creates an index
     add_reference :organizations, :creator, null: true, foreign_key: { to_table: :users }, type: :uuid
-    add_index :organizations, :creator_id
 
     # Attempt to backfill creator_id from authoritative audit history.
     # Staff audit events track admin actions with actor_id. If an organization
@@ -41,7 +41,6 @@ class AddCreatorToOrganizations < ActiveRecord::Migration[8.0]
   end
 
   def down
-    remove_index :organizations, :creator_id
     remove_reference :organizations, :creator, foreign_key: true
   end
 end
