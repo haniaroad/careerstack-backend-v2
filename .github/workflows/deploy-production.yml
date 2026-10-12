@@ -119,25 +119,16 @@ jobs:
           || echo "WARN: could not grant allUsers run.invoker (org policy?). See infra/README.md"
 
       - name: Smoke check health
-        env:
-          DEPLOY_SA: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
         run: |
           URL=$(gcloud run services describe "${{ env.SERVICE }}" --region="${{ env.REGION }}" --format='value(status.url)')
-          # WIF credentials cannot use --audiences directly; mint an ID token via IAM Credentials.
-          ACCESS=$(gcloud auth print-access-token)
-          TOKEN=$(curl -fsS -X POST \
-            -H "Authorization: Bearer ${ACCESS}" \
-            -H "Content-Type: application/json" \
-            "https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/${DEPLOY_SA}:generateIdToken" \
-            -d "{\"audience\":\"${URL}\",\"includeEmail\":true}" \
-            | python3 -c 'import json,sys; print(json.load(sys.stdin)["token"])')
+          # The service allows public invocation so browsers can send Firebase tokens.
           for i in 1 2 3 4 5 6 7 8 9 10; do
-            if curl -fsS -H "Authorization: Bearer ${TOKEN}" "${URL}/health" | grep -q ok; then
+            if curl -fsS "${URL}/health" | grep -q ok; then
               echo "Health check passed: ${URL}/health"
               exit 0
             fi
             sleep 6
           done
           echo "Health check failed for ${URL}/health"
-          curl -sS -H "Authorization: Bearer ${TOKEN}" "${URL}/health" || true
+          curl -sS "${URL}/health" || true
           exit 1
