@@ -49,7 +49,8 @@ RSpec.describe "Task submission files", type: :request do
     expect(response).to have_http_status(:ok)
     file = response.parsed_body.dig("task", "submissions", 0, "files", 0)
     expect(file["filename"]).to eq("evidence.txt")
-    expect(file["url"]).to include("/rails/active_storage/")
+    expect(file["url"]).to include("/rails/active_storage/blobs/redirect/")
+    expect(file["url"]).not_to include("/rails/active_storage/disk/")
     expect(file["url"]).to include("evidence.txt")
 
     get URI.parse(file["url"]).path

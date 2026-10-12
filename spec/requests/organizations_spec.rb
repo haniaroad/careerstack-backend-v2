@@ -17,6 +17,8 @@ RSpec.describe "Organization creation", type: :request do
     expect(body["organization_trial_granted"]).to be(true)
     expect(body.dig("organization", "workspace_id")).to be_present
     expect(body.dig("session", "user", "organization_trial_granted")).to be(true)
+    expect(body.dig("session", "user", "has_created_organization")).to be(true)
+    expect(body.dig("session", "user", "can_create_organization")).to be(false)
 
     organization = Organization.find(body.dig("organization", "id"))
     expect(organization.organization_memberships.sole).to have_attributes(user: user, role: "admin")
@@ -82,6 +84,10 @@ RSpec.describe "Organization creation", type: :request do
     expect(response).to have_http_status(:unprocessable_entity)
     expect(response.parsed_body.dig("error", "code")).to eq("organization_creation_blocked")
     expect(response.parsed_body.dig("error", "message")).to match(/manual review/)
+
+    get "/api/v1/session", headers: headers_for(user)
+    expect(response.parsed_body.dig("user", "has_created_organization")).to be(false)
+    expect(response.parsed_body.dig("user", "can_create_organization")).to be(false)
   end
 
   it "stores optional metadata when provided" do

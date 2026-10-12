@@ -20,7 +20,12 @@ Rails.application.configure do
 
   config.require_master_key = false
 
-  config.active_storage.service = ENV["GCS_BUCKET"].present? ? :google : :local
+  require Rails.root.join("config/active_storage_service")
+  config.active_storage.urls_expire_in = 12.hours
+  config.active_storage.service = CareerStack::ActiveStorageService.select(
+    gcs_bucket: ENV["GCS_BUCKET"],
+    cloud_run: ENV["K_SERVICE"]
+  )
 
   missing = %w[SECRET_KEY_BASE DATABASE_URL].reject { |key| ENV[key].present? }
   if missing.any?

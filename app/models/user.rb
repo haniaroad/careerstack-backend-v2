@@ -66,6 +66,25 @@ class User < ApplicationRecord
     Organization.where(creator_id: id).exists?
   end
 
+  # Same gate as Organizations::CreateOrganization. Invitation membership
+  # in other organizations does not count.
+  def can_create_organization?
+    return false if pending_onboarding?
+    return false unless adult?
+    return false if has_created_organization?
+    return false if admin_of_unattributed_organization?
+
+    true
+  end
+
+  def admin_of_unattributed_organization?
+    OrganizationMembership
+      .joins(:organization)
+      .where(user_id: id, role: "admin")
+      .where(organizations: { creator_id: nil })
+      .exists?
+  end
+
   # Minors and unknown-age users get no Personal workspace, no personal trial
   # credit, and no public identity.
   def privacy_restricted?

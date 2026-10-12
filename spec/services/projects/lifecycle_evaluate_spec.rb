@@ -51,6 +51,9 @@ RSpec.describe Projects::Lifecycle::Evaluate do
 
     expect(ctx[:project].reload.status).to eq(Project::STATUS_COMPLETED)
     expect(ctx[:project].completed_at).to be_present
+    expect(ctx[:project].home_warning_phase).to eq("completed")
+    completion = InboxAlert.where("idempotency_key LIKE ?", "lifecycle:completed:#{ctx[:project].id}%").first
+    expect(completion.lifecycle_phase).to eq("completed")
     expect(Credits::Balance.remaining(owner: ctx[:user])).to eq(remaining_before)
   end
 

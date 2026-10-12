@@ -48,6 +48,26 @@ RSpec.describe "Staging usability", type: :request do
            as: :json
       expect(response).to have_http_status(:not_found)
     end
+
+    it "dismisses a completion notice and rejects a stale ending-soon phase" do
+      project = ending_project_for(user)
+      project.update_columns(status: Project::STATUS_COMPLETED, completed_at: Time.current)
+      expect(project.reload.home_warning_phase).to eq("completed")
+
+      post "/api/v1/home/warning_dismissals",
+           params: { project_id: project.id, phase: "ending_soon" },
+           headers: headers_for(user),
+           as: :json
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(response.parsed_body.dig("error", "message")).to include("not current")
+
+      post "/api/v1/home/warning_dismissals",
+           params: { project_id: project.id, phase: "completed" },
+           headers: headers_for(user),
+           as: :json
+      expect(response).to have_http_status(:created)
+      expect(response.parsed_body.dig("dismissal", "phase")).to eq("completed")
+    end
   end
 
   describe "project invitation by email" do
