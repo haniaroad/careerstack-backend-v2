@@ -13,7 +13,7 @@ class AddCreatorToOrganizations < ActiveRecord::Migration[8.0]
     # user from creating another organization until resolved.
     #
     # DO NOT infer creator from earliest admin membership; that is not authoritative.
-    
+
     reversible do |dir|
       dir.up do
         # Check if StaffAuditEvent table exists and has organization_created events
@@ -28,7 +28,7 @@ class AddCreatorToOrganizations < ActiveRecord::Migration[8.0]
               AND staff_audit_events.action = 'organization_created'
           SQL
         end
-        
+
         # Log organizations that couldn't be backfilled
         null_count = Organization.where(creator_id: nil).count
         if null_count > 0
