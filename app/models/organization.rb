@@ -9,6 +9,7 @@ class Organization < ApplicationRecord
 
   belongs_to :structure_term, class_name: "TaxonomyTerm", optional: true
   belongs_to :primary_goal_term, class_name: "TaxonomyTerm", optional: true
+  belongs_to :creator, class_name: "User", optional: true  # Required for new orgs, nullable for legacy
   has_one :workspace, dependent: :destroy
   has_many :programs, dependent: :destroy
   has_many :organization_memberships, dependent: :destroy

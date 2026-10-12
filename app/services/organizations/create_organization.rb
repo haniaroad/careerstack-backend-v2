@@ -72,12 +72,41 @@ module Organizations
           status: :forbidden
         )
       end
+
+      # Enforce one organization per user (created by this user).
+      # Check both:
+      # 1. Organizations where creator_id is set to this user
+      # 2. Organizations where creator_id is NULL (legacy, requires manual review)
+      if Organization.where(creator_id: @user.id).exists?
+        raise Error.new(
+          "You have already created an organization",
+          code: "organization_limit_reached",
+          status: :unprocessable_entity
+        )
+      end
+
+      # If user has admin membership in an organization with NULL creator_id,
+      # block creation pending manual review of legacy attribution.
+      legacy_org_membership = OrganizationMembership
+        .joins(:organization)
+        .where(user_id: @user.id, role: "admin")
+        .where(organizations: { creator_id: nil })
+        .exists?
+      
+      if legacy_org_membership
+        raise Error.new(
+          "Your organization creation requires manual review. Please contact support.",
+          code: "organization_creation_blocked",
+          status: :unprocessable_entity
+        )
+      end
     end
 
     def organization_attributes
       attributes = TEXT_FIELDS.index_with { |field| @params[field].to_s.strip }
       OPTIONAL_FIELDS.each { |field| attributes[field] = @params[field].presence }
       attributes[:timezone] = timezone
+      attributes[:creator_id] = @user.id  # Persist durable creator attribution
       attributes
     end
 
