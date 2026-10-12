@@ -253,7 +253,7 @@ RSpec.describe "Explore directory", type: :request do
   it "filters projects by status (only discoverable statuses: active, completed, expired)" do
     viewer = create_onboarded_adult(email: "status-viewer-#{SecureRandom.hex(3)}@example.com")
     owner = create_onboarded_adult(email: "status-owner-#{SecureRandom.hex(3)}@example.com")
-    
+
     # Create projects with different statuses
     active = directory_project!(creator: owner, workspace: owner.personal_workspace, title: "Active project", status: "active")
     completed = directory_project!(creator: owner, workspace: owner.personal_workspace, title: "Completed project", status: "completed")
@@ -262,37 +262,37 @@ RSpec.describe "Explore directory", type: :request do
     directory_project!(creator: owner, workspace: owner.personal_workspace, title: "Draft project", status: "draft")
     directory_project!(creator: owner, workspace: owner.personal_workspace, title: "Cancelled project", status: "cancelled")
     directory_project!(creator: owner, workspace: owner.personal_workspace, title: "Archived project", status: "archived")
-    
+
     use_workspace!(viewer, viewer.personal_workspace)
-    
+
     # Filter by active status
     get "/api/v1/explore/projects", params: { status: "active" }, headers: headers_for(viewer)
     expect(response).to have_http_status(:ok)
     titles = response.parsed_body["projects"].map { |row| row["title"] }
     expect(titles).to include("Active project")
     expect(titles).not_to include("Completed project", "Expired project", "Draft project", "Cancelled project", "Archived project")
-    
+
     # Filter by completed status
     get "/api/v1/explore/projects", params: { status: "completed" }, headers: headers_for(viewer)
     expect(response).to have_http_status(:ok)
     titles = response.parsed_body["projects"].map { |row| row["title"] }
     expect(titles).to include("Completed project")
     expect(titles).not_to include("Active project", "Expired project", "Draft project", "Cancelled project", "Archived project")
-    
+
     # Filter by expired status
     get "/api/v1/explore/projects", params: { status: "expired" }, headers: headers_for(viewer)
     expect(response).to have_http_status(:ok)
     titles = response.parsed_body["projects"].map { |row| row["title"] }
     expect(titles).to include("Expired project")
     expect(titles).not_to include("Active project", "Completed project", "Draft project", "Cancelled project", "Archived project")
-    
+
     # No status filter - shows all discoverable statuses (active, completed, expired)
     get "/api/v1/explore/projects", headers: headers_for(viewer)
     expect(response).to have_http_status(:ok)
     titles = response.parsed_body["projects"].map { |row| row["title"] }
     expect(titles).to include("Active project", "Completed project", "Expired project")
     expect(titles).not_to include("Draft project", "Cancelled project", "Archived project")
-    
+
     # Invalid status (non-discoverable) - ignored, shows all discoverable statuses
     get "/api/v1/explore/projects", params: { status: "draft" }, headers: headers_for(viewer)
     expect(response).to have_http_status(:ok)

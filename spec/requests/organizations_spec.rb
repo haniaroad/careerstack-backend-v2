@@ -46,14 +46,14 @@ RSpec.describe "Organization creation", type: :request do
     create_org
     expect(response).to have_http_status(:created)
     first_org_id = response.parsed_body.dig("organization", "id")
-    
+
     # Attempt to create second organization - should fail
     create_org(organization_payload(name: "Second Org"))
-    
+
     expect(response).to have_http_status(:unprocessable_entity)
     expect(response.parsed_body.dig("error", "code")).to eq("organization_limit_reached")
     expect(response.parsed_body.dig("error", "message")).to match(/already created an organization/)
-    
+
     # Verify only one organization exists for this user
     expect(Organization.where(creator_id: user.id).count).to eq(1)
     expect(Organization.where(creator_id: user.id).first.id).to eq(first_org_id)
@@ -75,10 +75,10 @@ RSpec.describe "Organization creation", type: :request do
       user: user,
       role: "admin"
     )
-    
+
     # Attempt to create organization - should be blocked pending manual review
     create_org
-    
+
     expect(response).to have_http_status(:unprocessable_entity)
     expect(response.parsed_body.dig("error", "code")).to eq("organization_creation_blocked")
     expect(response.parsed_body.dig("error", "message")).to match(/manual review/)

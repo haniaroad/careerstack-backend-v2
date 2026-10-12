@@ -92,7 +92,7 @@ module Organizations
         .where(user_id: @user.id, role: "admin")
         .where(organizations: { creator_id: nil })
         .exists?
-      
+
       if legacy_org_membership
         raise Error.new(
           "Your organization creation requires manual review. Please contact support.",
