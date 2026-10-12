@@ -32,18 +32,55 @@ RSpec.describe "Organization creation", type: :request do
   end
 
   it "grants the organization trial only once per adult, ever" do
+    # NOTE: This test creates one organization. The one-org-per-user limit
+    # prevents creating a second organization. See the "one organization per user" test.
     create_org
     expect(response).to have_http_status(:created)
+    expect(response.parsed_body["organization_trial_granted"]).to be(true)
 
-    create_org(organization_payload(name: "Second Org"))
-
-    expect(response).to have_http_status(:created)
-    expect(response.parsed_body["organization_trial_granted"]).to be(false)
-
-    second_org = Organization.find_by!(name: "Second Org")
-    expect(CreditLedgerEntry.where(owner: second_org)).to be_empty
     expect(CreditLedgerEntry.where(actor_user: user, reason: "organization_trial").count).to eq(1)
-    expect(second_org.organization_memberships.sole.role).to eq("admin")
+  end
+
+  it "enforces one organization per user" do
+    # Create first organization successfully
+    create_org
+    expect(response).to have_http_status(:created)
+    first_org_id = response.parsed_body.dig("organization", "id")
+    
+    # Attempt to create second organization - should fail
+    create_org(organization_payload(name: "Second Org"))
+    
+    expect(response).to have_http_status(:unprocessable_entity)
+    expect(response.parsed_body.dig("error", "code")).to eq("organization_limit_reached")
+    expect(response.parsed_body.dig("error", "message")).to match(/already created an organization/)
+    
+    # Verify only one organization exists for this user
+    expect(Organization.where(creator_id: user.id).count).to eq(1)
+    expect(Organization.where(creator_id: user.id).first.id).to eq(first_org_id)
+  end
+
+  it "blocks users with legacy organizations from creating new ones" do
+    # Simulate a legacy organization (creator_id = NULL) where user is admin
+    legacy_org = Organization.create!(
+      name: "Legacy Org",
+      country: "US",
+      state_region: "CA",
+      structure_term_id: structure_term("nonprofit").id,
+      primary_goal_term_id: goal_term("education").id,
+      creator_id: nil  # Simulate legacy data
+    )
+    OrganizationMembership.create!(
+      organization: legacy_org,
+      user: user,
+      role: "admin"
+    )
+    
+    # Attempt to create organization - should be blocked pending manual review
+    create_org
+    
+    expect(response).to have_http_status(:unprocessable_entity)
+    expect(response.parsed_body.dig("error", "code")).to eq("organization_creation_blocked")
+    expect(response.parsed_body.dig("error", "message")).to match(/manual review/)
   end
 
   it "stores optional metadata when provided" do

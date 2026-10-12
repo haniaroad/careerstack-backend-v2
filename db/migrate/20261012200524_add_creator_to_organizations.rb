@@ -1,7 +1,7 @@
 class AddCreatorToOrganizations < ActiveRecord::Migration[8.0]
   def up
     # Add creator_id column (nullable during migration to allow existing orgs)
-    add_reference :organizations, :creator, null: true, foreign_key: { to_table: :users }
+    add_reference :organizations, :creator, null: true, foreign_key: { to_table: :users }, type: :uuid
     add_index :organizations, :creator_id
 
     # Attempt to backfill creator_id from authoritative audit history.
