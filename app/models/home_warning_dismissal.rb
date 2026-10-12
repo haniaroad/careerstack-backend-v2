@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class HomeWarningDismissal < ApplicationRecord
-  PHASES = %w[ending_soon grace_period expired].freeze
+  PHASES = %w[ending_soon grace_period expired completed].freeze
 
   belongs_to :user
   belongs_to :project

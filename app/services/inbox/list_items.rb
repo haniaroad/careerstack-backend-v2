@@ -181,6 +181,7 @@ module Inbox
         payload: {
           alert_id: alert.id,
           kind: alert.kind,
+          lifecycle_phase: alert.lifecycle_phase,
           subject_type: alert.subject_type,
           subject_id: alert.subject_id
         }

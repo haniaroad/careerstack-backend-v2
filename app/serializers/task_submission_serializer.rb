@@ -1,6 +1,9 @@
 # frozen_string_literal: true
 
 class TaskSubmissionSerializer
+  # Long enough for a review session. The service URL minted by the redirect stays short-lived.
+  REVIEW_URL_TTL = 12.hours
+
   def self.call(submission, host: nil)
     new(submission, host: host).as_json
   end
@@ -32,7 +35,7 @@ class TaskSubmissionSerializer
       filename: blob.filename.to_s,
       content_type: blob.content_type,
       byte_size: blob.byte_size,
-      signed_id: blob.signed_id,
+      signed_id: blob.signed_id(expires_in: REVIEW_URL_TTL),
       url: blob_url(attachment)
     }
   end
@@ -41,6 +44,7 @@ class TaskSubmissionSerializer
     Rails.application.routes.url_helpers.rails_blob_url(
       attachment,
       disposition: "inline",
+      expires_in: REVIEW_URL_TTL,
       host: @host.presence || "www.example.com"
     )
   end

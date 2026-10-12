@@ -26,4 +26,21 @@ class InboxAlert < ApplicationRecord
   validates :kind, inclusion: { in: KINDS }
   validates :urgency, inclusion: { in: URGENCIES }
   validates :subject_type, :subject_id, :title, :body, :idempotency_key, presence: true
+
+  # Home phase encoded in the idempotency key at creation
+  # (`lifecycle:completed:`, `lifecycle:grace:`, and so on). Date-change
+  # lifecycle alerts are not a Home phase.
+  LIFECYCLE_PHASE_FROM_KEY = {
+    "ending_soon" => "ending_soon",
+    "grace" => "grace_period",
+    "expired" => "expired",
+    "completed" => "completed"
+  }.freeze
+
+  def lifecycle_phase
+    return nil unless kind == KIND_LIFECYCLE
+
+    token = idempotency_key.to_s.split(":")[1]
+    LIFECYCLE_PHASE_FROM_KEY[token]
+  end
 end

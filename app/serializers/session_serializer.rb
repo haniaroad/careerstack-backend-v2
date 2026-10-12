@@ -60,7 +60,8 @@ class SessionSerializer
       organization_trial_granted: @user.organization_trial_granted,
       public_identity_visible: @user.public_identity_visible?,
       timezone: @user.timezone,
-      has_created_organization: @user.has_created_organization?
+      has_created_organization: @user.has_created_organization?,
+      can_create_organization: @user.can_create_organization?
     }
   end
 

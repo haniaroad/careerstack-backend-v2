@@ -15,7 +15,10 @@ module Home
 
     def call
       unless HomeWarningDismissal::PHASES.include?(@phase)
-        raise DomainError.new("phase must be ending_soon, grace_period, or expired", code: "validation_error")
+        raise DomainError.new(
+          "phase must be ending_soon, grace_period, expired, or completed",
+          code: "validation_error"
+        )
       end
 
       project = Project.find_by(id: @project_id)
