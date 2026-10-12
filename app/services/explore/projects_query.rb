@@ -86,6 +86,13 @@ module Explore
         scope = scope.where("projects.roles_needed @> ?", [ role ].to_json)
       end
 
+      # Status filter: allow filtering within the discoverable statuses.
+      # Only accept status values that are in DISCOVERABLE_STATUSES.
+      status = @filters[:status].to_s.strip
+      if status.present? && DISCOVERABLE_STATUSES.include?(status)
+        scope = scope.where(status: status)
+      end
+
       scope
     end
 

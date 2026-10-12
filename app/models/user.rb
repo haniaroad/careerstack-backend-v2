@@ -60,6 +60,12 @@ class User < ApplicationRecord
     age_status == AgeStatusCalculator::ADULT
   end
 
+  # Check if user has created an organization (for UI menu control).
+  # Returns true if user is the creator of any organization.
+  def has_created_organization?
+    Organization.where(creator_id: id).exists?
+  end
+
   # Minors and unknown-age users get no Personal workspace, no personal trial
   # credit, and no public identity.
   def privacy_restricted?

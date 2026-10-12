@@ -53,7 +53,7 @@ module Api
       end
 
       def project_filters
-        params.permit(:q, :skill, :role).to_h.symbolize_keys
+        params.permit(:q, :skill, :role, :status).to_h.symbolize_keys
       end
 
       def people_filters
