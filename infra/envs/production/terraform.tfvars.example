@@ -1,0 +1,11 @@
+project_id     = "careerstack-prod"
+project_number = "732555935345"
+region         = "us-east5"
+github_org     = "haniaroad"
+# billing_account = "XXXXXX-XXXXXX-XXXXXX"
+budget_amount_usd = 50
+db_tier           = "db-f1-micro"
+# Production Firebase project. Do not point this at careerstack-staging.
+firebase_project_id = "careerstack-prod"
+# Set true only after org-policy exception for allUsers on Cloud Run (see infra/README.md).
+allow_unauthenticated_invoker = false
