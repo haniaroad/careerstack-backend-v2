@@ -2,12 +2,14 @@
 
 module TransactionalMail
   class Renderer
-    INK = "#0B0B0D"
-    CANVAS = "#FAFAF9"
-    SURFACE = "#FFFFFF"
-    BODY = "#475569"
-    META = "#64748B"
-    INDIGO = "#4F46E5"
+    INK = "#1c1917"
+    CANVAS = "#f3efe7"
+    SURFACE = "#fbf8f3"
+    BODY = "#57534e"
+    META = "#57534e"
+    EMBER = "#9a3412"
+    BUTTON_LABEL = "#fbf8f3"
+    BORDER = "#dcd3c4"
 
     def self.call(notification:, items: nil)
       new(notification: notification, items: items).call
@@ -67,12 +69,12 @@ module TransactionalMail
         <div style="display:none;max-height:0;overflow:hidden;">#{escape(preheader)}</div>
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#{CANVAS};">
           <tr><td align="center" style="padding:24px;">
-            <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;background:#{SURFACE};border:1px solid #E2E8F0;">
+            <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;background:#{SURFACE};border:1px solid #{BORDER};">
               <tr><td style="padding:24px;font-family:Arial,Helvetica,sans-serif;color:#{INK};font-size:24px;font-weight:700;">CareerStack</td></tr>
               <tr><td style="padding:0 24px 16px;font-family:Arial,Helvetica,sans-serif;color:#{INK};font-size:20px;">#{escape(heading)}</td></tr>
               <tr><td style="padding:0 24px 24px;font-family:Arial,Helvetica,sans-serif;color:#{BODY};font-size:16px;line-height:1.5;">#{escape(body).gsub("\n", "<br>")}</td></tr>
               <tr><td style="padding:0 24px 24px;">
-                <a href="#{escape(url)}" style="display:inline-block;background:#{INK};color:#FFFFFF;text-decoration:none;padding:12px 24px;border-radius:6px;font-family:Arial,Helvetica,sans-serif;font-size:16px;">#{escape(cta)}</a>
+                <a href="#{escape(url)}" style="display:inline-block;background:#{EMBER};color:#{BUTTON_LABEL};text-decoration:none;padding:12px 24px;border-radius:6px;font-family:Arial,Helvetica,sans-serif;font-size:16px;">#{escape(cta)}</a>
               </td></tr>
               <tr><td style="padding:0 24px 24px;font-family:Arial,Helvetica,sans-serif;color:#{BODY};font-size:14px;">— The CareerStack team</td></tr>
               <tr><td style="padding:16px 24px;font-family:Arial,Helvetica,sans-serif;color:#{META};font-size:12px;">#{escape(footer)}<br>© CareerStack</td></tr>
