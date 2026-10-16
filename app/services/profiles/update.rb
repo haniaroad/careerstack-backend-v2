@@ -6,7 +6,7 @@ module Profiles
       display_name country state_region career_goal
       current_role_term_id current_role_other experience_level
       target_role_term_id target_role_other
-      bio image_url github_url linkedin_url portfolio_url interests timezone
+      bio github_url linkedin_url portfolio_url interests timezone
     ].freeze
 
     def self.call(user:, params:)
@@ -33,7 +33,7 @@ module Profiles
         raise DomainError.new("experience_level must be beginner, intermediate, or advanced", code: "validation_error")
       end
 
-      %w[github_url linkedin_url portfolio_url image_url].each do |field|
+      %w[github_url linkedin_url portfolio_url].each do |field|
         next unless @params.key?(field)
 
         value = @params[field].to_s.strip

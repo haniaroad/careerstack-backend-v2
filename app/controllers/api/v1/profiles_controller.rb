@@ -13,6 +13,16 @@ module Api
         render json: { profile: ProfileSerializer.own(current_user.reload) }
       end
 
+      def upload_photo
+        Profiles::AttachPhoto.call(user: current_user, upload: params[:photo])
+        render json: { profile: ProfileSerializer.own(current_user.reload) }
+      end
+
+      def destroy_photo
+        Profiles::RemovePhoto.call(user: current_user)
+        render json: { profile: ProfileSerializer.own(current_user.reload) }
+      end
+
       def visibility
         Profiles::ConfirmVisibility.call(user: current_user, decision: params.require(:decision))
         render json: {

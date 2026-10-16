@@ -51,6 +51,16 @@ RSpec.describe "Independent onboarding", type: :request do
     expect(profile.interests).to eq([])
   end
 
+  it "ignores an image address and does not store a photo file" do
+    complete_onboarding(independent_onboarding_payload(image_url: "https://example.com/face.jpg"))
+
+    expect(response).to have_http_status(:created)
+    profile = User.find_by!(email: "independent@example.com").profile
+    expect(profile.image_url).to be_nil
+    expect(profile.profile_photo).not_to be_attached
+    expect(response.parsed_body.dig("profile", "image_url")).to be_nil
+  end
+
   it "stores optional fields when provided and caps interests at ten tags" do
     complete_onboarding(
       independent_onboarding_payload(

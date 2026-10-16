@@ -71,7 +71,9 @@ class SessionSerializer
 
     Profiles::AssignSlug.call(profile: profile) if profile.slug.blank?
     profile.reload
-    PROFILE_FIELDS.index_with { |field| profile.public_send(field) }.merge(
+    photo_urls = Profiles::PhotoUrls.for(profile)
+    PROFILE_FIELDS.index_with { |field| field == :image_url ? photo_urls[:image_url] : profile.public_send(field) }.merge(
+      profile_photo_thumb_url: photo_urls[:profile_photo_thumb_url],
       visibility: Profiles::Visibility.code_for(@user)
     )
   end

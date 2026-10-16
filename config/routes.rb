@@ -21,6 +21,8 @@ Rails.application.routes.draw do
       post "first_run_tips/:key/dismiss", to: "first_run_tips#dismiss"
       get "profiles/me", to: "profiles#me"
       patch "profiles/me", to: "profiles#update_me"
+      post "profiles/me/photo", to: "profiles#upload_photo"
+      delete "profiles/me/photo", to: "profiles#destroy_photo"
       post "profiles/me/visibility", to: "profiles#visibility"
       get "profiles/:slug", to: "profiles#show"
       post "onboarding/independent", to: "onboarding#independent"

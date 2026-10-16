@@ -7,6 +7,7 @@ class Profile < ApplicationRecord
   belongs_to :user
   belongs_to :current_role_term, class_name: "TaxonomyTerm", optional: true
   belongs_to :target_role_term, class_name: "TaxonomyTerm", optional: true
+  has_one_attached :profile_photo
 
   validates :display_name, :country, :state_region, :career_goal, presence: true
   validates :experience_level, inclusion: { in: EXPERIENCE_LEVELS }

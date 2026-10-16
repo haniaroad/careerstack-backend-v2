@@ -15,7 +15,7 @@ module Onboarding
 
     OPTIONAL_FIELDS = %i[
       current_role_term_id current_role_other target_role_term_id target_role_other
-      bio image_url github_url linkedin_url portfolio_url
+      bio github_url linkedin_url portfolio_url
     ].freeze
 
     def initialize(params)
