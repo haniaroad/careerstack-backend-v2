@@ -28,7 +28,7 @@ module Explore
     private
 
     def searchable
-      scope = User.joins(:profile).includes(profile: :current_role_term)
+      scope = User.joins(:profile).includes(profile: [ :current_role_term, { profile_photo_attachment: :blob } ])
         .where(status: User::ACTIVE, age_status: AgeStatusCalculator::ADULT)
         .where.not(id: @viewer.id)
         .where(<<~SQL.squish)
@@ -141,11 +141,13 @@ module Explore
       organizations = Array(label && label[:organizations]).uniq.sort
       skills = Array(label && label[:skills]).map(&:to_s).uniq.sort
       role = profile.current_role_other.presence || profile.current_role_term&.label
+      photo_urls = Profiles::PhotoUrls.for(profile)
       {
         user_id: user.id,
         slug: profile.slug,
         display_name: profile.display_name,
-        image_url: profile.image_url,
+        image_url: photo_urls[:image_url],
+        profile_photo_thumb_url: photo_urls[:profile_photo_thumb_url],
         location: [ profile.state_region, profile.country ].compact_blank.join(", "),
         timezone: user.timezone,
         role: role,

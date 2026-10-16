@@ -54,6 +54,8 @@ jobs:
       CORS_ORIGINS: http://localhost:5173
     steps:
       - uses: actions/checkout@v4
+      - name: Install libvips
+        run: sudo apt-get update && sudo apt-get install --no-install-recommends -y libvips42
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: .ruby-version

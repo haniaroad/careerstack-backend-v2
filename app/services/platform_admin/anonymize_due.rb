@@ -17,7 +17,9 @@ module PlatformAdmin
     end
 
     def self.anonymize!(user)
-      user.profile&.update!(
+      profile = user.profile
+      profile.profile_photo.purge if profile&.profile_photo&.attached?
+      profile&.update!(
         display_name: "Deleted user",
         bio: nil,
         image_url: nil,

@@ -34,7 +34,9 @@ class ProfileSerializer
     raise DomainError.new("Profile not found", code: "not_found", status: :not_found) if @profile.nil?
 
     fields = @public_view ? PUBLIC_FIELDS : DETAIL_FIELDS
-    details = fields.index_with { |field| @profile.public_send(field) }
+    photo_urls = Profiles::PhotoUrls.for(@profile)
+    details = fields.index_with { |field| field == :image_url ? photo_urls[:image_url] : @profile.public_send(field) }
+    details[:profile_photo_thumb_url] = photo_urls[:profile_photo_thumb_url]
 
     {
       user_id: @user.id,

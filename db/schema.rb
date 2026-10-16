@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_10_12_200524) do
+ActiveRecord::Schema[8.0].define(version: 2026_10_16_183000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -530,6 +530,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_12_200524) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "slug", null: false
+    t.datetime "photo_upload_window_started_at"
+    t.integer "photo_upload_attempts", default: 0, null: false
     t.index ["current_role_term_id"], name: "index_profiles_on_current_role_term_id"
     t.index ["display_name"], name: "index_profiles_on_display_name"
     t.index ["slug"], name: "index_profiles_on_slug", unique: true

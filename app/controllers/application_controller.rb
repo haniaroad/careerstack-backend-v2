@@ -4,6 +4,8 @@ class ApplicationController < ActionController::API
   include ErrorEnvelope
   include Authenticatable
 
+  before_action :set_active_storage_url_options
+
   rescue_from ActiveRecord::RecordNotFound do |_error|
     render_error(code: "not_found", message: "Resource not found", status: :not_found)
   end
@@ -14,6 +16,14 @@ class ApplicationController < ActionController::API
       message: "#{error.param} is required",
       status: :unprocessable_entity
     )
+  end
+
+  def set_active_storage_url_options
+    ActiveStorage::Current.url_options = {
+      protocol: request.ssl? ? "https" : "http",
+      host: request.host,
+      port: request.optional_port
+    }
   end
 
   rescue_from ActiveRecord::RecordInvalid do |error|
