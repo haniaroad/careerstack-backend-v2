@@ -122,14 +122,20 @@ module Profiles
       events = ContributionEvent.where(user_id: @user.id).where(occurred_at: since..)
 
       buckets = Hash.new(0)
+      kinds = Hash.new { |weeks, week| weeks[week] = Hash.new(0) }
       events.find_each do |event|
         key = event.occurred_at.utc.to_date.beginning_of_week(:monday).iso8601
         buckets[key] += 1
+        kinds[key][event.kind] += 1 if ContributionEvent::KINDS.include?(event.kind)
       end
 
       SPARKLINE_WEEKS.times.map do |offset|
         iso = (start_week + offset.weeks).iso8601
-        { week_start: iso, count: buckets[iso] || 0 }
+        {
+          week_start: iso,
+          count: buckets[iso] || 0,
+          by_kind: kinds[iso].select { |_kind, count| count.positive? }
+        }
       end
     end
   end
