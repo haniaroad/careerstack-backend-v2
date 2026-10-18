@@ -142,12 +142,30 @@ RSpec.describe "Staging usability", type: :request do
         private_org: false,
         idempotency_key: "task_submitted:spec:#{project.id}"
       )
+      ContributionEvent.create!(
+        user: user,
+        kind: ContributionEvent::KIND_TASK_APPROVED,
+        occurred_at: Time.current,
+        subject_type: "Project",
+        subject_id: project.id,
+        workspace_kind: ContributionEvent::WORKSPACE_ORGANIZATION,
+        private_org: true,
+        idempotency_key: "task_approved:spec:#{project.id}"
+      )
 
       get "/api/v1/profiles/me", headers: headers_for(user)
       activity = response.parsed_body.dig("profile", "stats", "activity")
       current = Time.current.utc.to_date.beginning_of_week(:monday).iso8601
       week = activity.find { |point| point["week_start"] == current }
-      expect(week["count"]).to eq(1)
+      expect(week["count"]).to eq(2)
+      expect(week["by_kind"]).to eq(
+        "task_submitted" => 1,
+        "task_approved" => 1
+      )
+      expect(week.keys).to match_array(%w[week_start count by_kind])
+      empty = activity.find { |point| point["count"].zero? }
+      expect(empty["by_kind"]).to eq({})
+      expect(activity.to_json).not_to include(project.title)
     end
 
     it "lets an independent adult make the profile private and public again" do
