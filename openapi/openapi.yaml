@@ -1171,8 +1171,9 @@ paths:
       operationId: listTaxonomies
       summary: List controlled taxonomies and their terms
       description: |
-        Returns `roles`, `experience_levels`, `organization_structures`, and
-        `organization_goals`. Term IDs are stable across environments and safe to
+        Returns `roles`, `skills`, `experience_levels`, `organization_structures`,
+        and `organization_goals`, plus English country names and US state
+        abbreviations. Term IDs are stable across environments and safe to
         cache. Terms are ordered for display, with any `is_other` term last.
       tags: [Taxonomies]
       responses:
@@ -1182,8 +1183,16 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [taxonomies]
+                required: [taxonomies, countries, us_state_abbreviations]
                 properties:
+                  countries:
+                    type: array
+                    items:
+                      type: string
+                  us_state_abbreviations:
+                    type: array
+                    items:
+                      type: string
                   taxonomies:
                     type: array
                     items:

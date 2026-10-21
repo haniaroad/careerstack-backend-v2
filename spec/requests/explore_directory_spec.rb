@@ -14,7 +14,7 @@ RSpec.describe "Explore directory", type: :request do
       visibility: visibility,
       joining_mode: mode == "team" ? "instant" : nil,
       capacity: mode == "team" ? 3 : nil,
-      roles_needed: mode == "team" ? [ "Designer" ] : [],
+      roles_needed: mode == "team" ? [ "UI/UX designer" ] : [],
       skills: skills,
       ends_on: Date.current + 30
     )
@@ -190,7 +190,7 @@ RSpec.describe "Explore directory", type: :request do
       user: busy,
       role: ProjectMembership::ROLE_PARTICIPANT,
       status: ProjectMembership::STATUS_ACTIVE,
-      participant_role: "Designer",
+      participant_role: "UI/UX designer",
       join_source: ProjectMembership::JOIN_SOURCE_INSTANT
     )
 
@@ -209,7 +209,7 @@ RSpec.describe "Explore directory", type: :request do
 
     credits_before = CreditLot.where(owner: creator).sum(:remaining)
     post "/api/v1/projects/#{first.id}/invitations",
-         params: { invitee_id: target.id, requested_role: "Designer" },
+         params: { invitee_id: target.id, requested_role: "UI/UX designer" },
          headers: headers_for(creator),
          as: :json
     expect(response).to have_http_status(:created)
@@ -221,7 +221,7 @@ RSpec.describe "Explore directory", type: :request do
 
     expect {
       post "/api/v1/projects/#{second.id}/invitations",
-           params: { invitee_id: busy.id, requested_role: "Designer" },
+           params: { invitee_id: busy.id, requested_role: "UI/UX designer" },
            headers: headers_for(creator),
            as: :json
     }.not_to change(ProjectInvitation, :count)
@@ -229,7 +229,7 @@ RSpec.describe "Explore directory", type: :request do
     expect(response.parsed_body["error"]["code"]).to eq("invitee_unavailable")
 
     post "/api/v1/projects/#{first.id}/invitations",
-         params: { invitee_id: target.id, requested_role: "Designer" },
+         params: { invitee_id: target.id, requested_role: "UI/UX designer" },
          as: :json
     expect(response).to have_http_status(:unauthorized)
   end
@@ -299,5 +299,15 @@ RSpec.describe "Explore directory", type: :request do
     titles = response.parsed_body["projects"].map { |row| row["title"] }
     expect(titles).to include("Active project", "Completed project", "Expired project")
     expect(titles).not_to include("Draft project")
+  end
+
+  it "offers the shared skill and role lists before any project stores them" do
+    viewer = create_onboarded_adult(email: "filters-#{SecureRandom.hex(3)}@example.com")
+
+    get "/api/v1/explore/filter_options", headers: headers_for(viewer)
+
+    expect(response).to have_http_status(:ok)
+    expect(response.parsed_body["skills"]).to include("Web development", "Accessibility")
+    expect(response.parsed_body["roles"]).to include("Frontend developer", "Software engineer")
   end
 end

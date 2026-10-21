@@ -15,8 +15,8 @@ RSpec.describe "Ai project generation services" do
       "expected_duration" => "2 weeks",
       "project_end_date" => future_end,
       "definition_of_done" => "Deployed page with about and projects sections.",
-      "skills_demonstrated" => [ "HTML", "CSS" ],
-      "roles_needed" => [ "Solo builder" ],
+      "skills_demonstrated" => [ "Web development" ],
+      "roles_needed" => [ "Software engineer" ],
       "submission_expectations" => "Share a public URL.",
       "proposed_tasks" => [
         {

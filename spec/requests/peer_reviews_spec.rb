@@ -43,7 +43,7 @@ RSpec.describe "Peer reviews", type: :request do
       mode: Project::MODE_TEAM,
       joining_mode: Project::JOINING_INSTANT,
       capacity: 3,
-      roles_needed: [ "Designer" ],
+      roles_needed: [ "UI/UX designer" ],
       program_id: program.id
     )
     project.update!(
@@ -57,7 +57,7 @@ RSpec.describe "Peer reviews", type: :request do
       user: participant,
       role: ProjectMembership::ROLE_PARTICIPANT,
       status: ProjectMembership::STATUS_ACTIVE,
-      participant_role: "Designer",
+      participant_role: "UI/UX designer",
       join_source: ProjectMembership::JOIN_SOURCE_INSTANT
     )
     project.tasks.find_each { |task| task.update!(assignee_id: participant.id, status: Task::STATUS_APPROVED) }
@@ -117,7 +117,7 @@ RSpec.describe "Peer reviews", type: :request do
       mode: Project::MODE_TEAM,
       joining_mode: Project::JOINING_INSTANT,
       capacity: 2,
-      roles_needed: [ "Designer" ],
+      roles_needed: [ "UI/UX designer" ],
       program_id: ctx[:project].program_id
     )
     active.update!(status: Project::STATUS_ACTIVE, ends_on: Date.current + 14)
@@ -198,7 +198,7 @@ RSpec.describe "Peer reviews", type: :request do
       mode: Project::MODE_TEAM,
       joining_mode: Project::JOINING_INSTANT,
       capacity: 2,
-      roles_needed: [ "Designer" ]
+      roles_needed: [ "UI/UX designer" ]
     )
     project.update!(status: Project::STATUS_COMPLETED, completed_at: 1.day.ago, ends_on: Date.current + 14)
     ProjectMembership.create!(project: project, user: creator, role: ProjectMembership::ROLE_CREATOR, status: ProjectMembership::STATUS_ACTIVE)
@@ -207,7 +207,7 @@ RSpec.describe "Peer reviews", type: :request do
       user: participant,
       role: ProjectMembership::ROLE_PARTICIPANT,
       status: ProjectMembership::STATUS_ACTIVE,
-      participant_role: "Designer",
+      participant_role: "UI/UX designer",
       join_source: ProjectMembership::JOIN_SOURCE_INSTANT
     )
 

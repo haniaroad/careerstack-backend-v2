@@ -117,11 +117,21 @@ module Ai
 
       # Prefer plain string content for text-only reviews; multimodal array only when images are present.
       user_content =
-        if extraction.image_blobs.empty?
+        if extraction.image_blobs.empty? && extraction.pdf_blobs.empty?
           text
         else
           content = [ { type: "text", text: text } ]
-          extraction.image_blobs.first(3).each do |blob|
+          extraction.pdf_blobs.each do |blob|
+            data = Base64.strict_encode64(blob.download)
+            content << {
+              type: "file",
+              file: {
+                filename: blob.filename.to_s,
+                file_data: "data:application/pdf;base64,#{data}"
+              }
+            }
+          end
+          extraction.image_blobs.each do |blob|
             data = Base64.strict_encode64(blob.download)
             content << {
               type: "image_url",

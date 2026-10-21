@@ -67,6 +67,7 @@ module Projects
       attrs[:objective] = optional_text(:objective) if param_key?(:objective)
       attrs[:definition_of_done] = optional_text(:definition_of_done) if param_key?(:definition_of_done)
       attrs[:visibility] = visibility_value if param_key?(:visibility)
+      attrs[:skills] = skills_value if param_key?(:skills)
       apply_team_fields!(attrs)
       attrs
     end
@@ -128,10 +129,11 @@ module Projects
     end
 
     def roles_value
-      roles = Array(param(:roles_needed)).map { |role| role.to_s.strip }.reject(&:blank?)
-      raise DomainError.new("At least one role is required", code: "validation_error") if roles.empty?
+      Projects::TaxonomySelection.validate_roles!(param(:roles_needed), existing: @project.roles_needed)
+    end
 
-      roles
+    def skills_value
+      Projects::TaxonomySelection.validate_skills!(param(:skills), existing: @project.skills)
     end
 
     def param_key?(name)

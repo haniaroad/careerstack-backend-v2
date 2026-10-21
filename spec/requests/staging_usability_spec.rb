@@ -82,7 +82,7 @@ RSpec.describe "Staging usability", type: :request do
         mode: Project::MODE_TEAM,
         joining_mode: Project::JOINING_INVITE_ONLY,
         capacity: 3,
-        roles_needed: [ "Designer" ]
+        roles_needed: [ "UI/UX designer" ]
       )
       project.update!(ends_on: Date.current + 30)
       Projects::Confirm.call(project: project, user: creator)
@@ -94,7 +94,7 @@ RSpec.describe "Staging usability", type: :request do
       project = invite_only_project
 
       post "/api/v1/projects/#{project.id}/invitations",
-           params: { invitee_email: "teammate@example.com", requested_role: "Designer" },
+           params: { invitee_email: "teammate@example.com", requested_role: "UI/UX designer" },
            headers: headers_for(creator),
            as: :json
 
@@ -108,14 +108,14 @@ RSpec.describe "Staging usability", type: :request do
       expect(pending.map { |row| row["invitee_email"] }).to include(invitee.email)
 
       post "/api/v1/projects/#{project.id}/invitations",
-           params: { invitee_email: "missing@example.com", requested_role: "Designer" },
+           params: { invitee_email: "missing@example.com", requested_role: "UI/UX designer" },
            headers: headers_for(creator),
            as: :json
       expect(response).to have_http_status(:unprocessable_entity)
       expect(response.parsed_body.dig("error", "message")).to include("CareerStack account")
 
       post "/api/v1/projects/#{project.id}/invitations",
-           params: { invitee_email: creator.email, requested_role: "Designer" },
+           params: { invitee_email: creator.email, requested_role: "UI/UX designer" },
            headers: headers_for(creator),
            as: :json
       expect(response).to have_http_status(:unprocessable_entity)

@@ -43,7 +43,7 @@ RSpec.describe Tasks::CreatorReview do
       mode: Project::MODE_TEAM,
       joining_mode: Project::JOINING_INSTANT,
       capacity: 3,
-      roles_needed: [ "Designer" ],
+      roles_needed: [ "UI/UX designer" ],
       program_id: program.id
     )
     confirm_ends_on = ends_on >= Date.current ? ends_on : (Date.current + 30)
@@ -61,7 +61,7 @@ RSpec.describe Tasks::CreatorReview do
     Projects::Confirm.call(project: project, user: creator)
     project.reload
 
-    Projects::InstantJoin.call(project: project, user: participant, participant_role: "Designer")
+    Projects::InstantJoin.call(project: project, user: participant, participant_role: "UI/UX designer")
 
     task = project.tasks.first
     Tasks::Assign.call(task: task, actor: creator, assignee: participant)

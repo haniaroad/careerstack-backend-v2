@@ -46,7 +46,7 @@ RSpec.describe "Inbox and creator review API", type: :request do
       mode: Project::MODE_TEAM,
       joining_mode: Project::JOINING_INSTANT,
       capacity: 3,
-      roles_needed: [ "Designer" ],
+      roles_needed: [ "UI/UX designer" ],
       program_id: program.id
     )
     project.update!(
@@ -61,7 +61,7 @@ RSpec.describe "Inbox and creator review API", type: :request do
       ]
     )
     Projects::Confirm.call(project: project, user: creator)
-    Projects::InstantJoin.call(project: project.reload, user: participant, participant_role: "Designer")
+    Projects::InstantJoin.call(project: project.reload, user: participant, participant_role: "UI/UX designer")
     task = project.reload.tasks.first
     Tasks::Assign.call(task: task, actor: creator, assignee: participant)
     Tasks::Submit.call(task: task.reload, user: participant, body: "Done", links: [], signed_blob_ids: [])

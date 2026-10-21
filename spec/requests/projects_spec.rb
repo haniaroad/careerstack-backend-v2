@@ -8,7 +8,7 @@ RSpec.describe "Projects API", type: :request do
 
   it "creates a draft, confirms with credit consume, lists, and cancels with restore" do
     post "/api/v1/projects",
-         params: { title: "My solo project", summary: "Build a site", skills: [ "React" ] }.to_json,
+         params: { title: "My solo project", summary: "Build a site", skills: [ "Web development" ] }.to_json,
          headers: headers.merge("CONTENT_TYPE" => "application/json")
     expect(response).to have_http_status(:created)
     project_id = response.parsed_body.fetch("project").fetch("id")
@@ -53,6 +53,24 @@ RSpec.describe "Projects API", type: :request do
     expect(response).to have_http_status(:unprocessable_entity)
     expect(response.parsed_body.dig("error", "code")).to eq("validation_error")
     expect(Credits::Balance.remaining(owner: user)).to eq(1)
+  end
+
+  it "lets the creator update skills from the shared list and keeps a legacy skill" do
+    project = Projects::CreateDraft.call(user: user, workspace: user.personal_workspace, title: "Skill edit")
+    project.update!(ends_on: Date.current + 14, skills: [ "React" ])
+    Projects::Confirm.call(project: project, user: user)
+
+    patch "/api/v1/projects/#{project.id}",
+          params: { skills: [ "React", "Web development" ] }.to_json,
+          headers: headers.merge("CONTENT_TYPE" => "application/json")
+    expect(response).to have_http_status(:ok)
+    expect(response.parsed_body.dig("project", "skills")).to eq([ "React", "Web development" ])
+
+    patch "/api/v1/projects/#{project.id}",
+          params: { skills: [ "React", "Not a skill" ] }.to_json,
+          headers: headers.merge("CONTENT_TYPE" => "application/json")
+    expect(response).to have_http_status(:unprocessable_entity)
+    expect(project.reload.skills).to eq([ "React", "Web development" ])
   end
 
   it "lets the creator update ends_on on an active project" do
@@ -144,13 +162,13 @@ RSpec.describe "Projects API", type: :request do
       visibility: "public",
       joining_mode: "application",
       capacity: 3,
-      roles_needed: [ "Designer" ],
+      roles_needed: [ "UI/UX designer" ],
       ends_on: Date.current + 30
     )
     ProjectApplication.create!(
       project: project,
       applicant: viewer,
-      requested_role: "Designer",
+      requested_role: "UI/UX designer",
       motivation: "I can help with the visual design.",
       availability_confirmed: true,
       status: "pending"

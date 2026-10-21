@@ -16,15 +16,15 @@ module Explore
     end
 
     def self.skills
-      listed(Project.where(status: ProjectsQuery::DISCOVERABLE_STATUSES, visibility: Project::VISIBILITY_PUBLIC).pluck(:skills))
+      taxonomy_labels("skills")
     end
 
     def self.roles
-      from_projects = listed(
-        Project.where(status: ProjectsQuery::DISCOVERABLE_STATUSES, visibility: Project::VISIBILITY_PUBLIC).pluck(:roles_needed)
-      )
-      from_taxonomy = Taxonomy.find_by(key: "roles")&.taxonomy_terms&.order(:label)&.pluck(:label) || []
-      (from_projects + from_taxonomy).uniq.sort
+      taxonomy_labels("roles")
+    end
+
+    def self.taxonomy_labels(key)
+      Taxonomy.find_by(key: key)&.taxonomy_terms&.order(:position)&.pluck(:label) || []
     end
 
     def self.locations

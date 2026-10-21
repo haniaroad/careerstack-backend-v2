@@ -102,7 +102,7 @@ RSpec.describe "Notifications emit and delivery" do
       status: Project::STATUS_ACTIVE,
       joining_mode: Project::JOINING_INSTANT,
       capacity: 3,
-      roles_needed: [ "Designer" ],
+      roles_needed: [ "UI/UX designer" ],
       skills: [ "Facilitation" ],
       ends_on: Date.current + 30
     )
@@ -112,7 +112,7 @@ RSpec.describe "Notifications emit and delivery" do
       user: reader,
       role: ProjectMembership::ROLE_PARTICIPANT,
       status: ProjectMembership::STATUS_ACTIVE,
-      participant_role: "Designer",
+      participant_role: "UI/UX designer",
       join_source: ProjectMembership::JOIN_SOURCE_INSTANT
     )
     message = ProjectMessage.create!(project: project, author: author, body: "Secret body text")

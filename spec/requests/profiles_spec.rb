@@ -36,6 +36,25 @@ RSpec.describe "Profiles API", type: :request do
       expect(details["slug"]).to eq(slug)
     end
 
+    it "rejects a written-out US state and accepts another country" do
+      patch "/api/v1/profiles/me",
+            params: { country: "United States", state_region: "California" },
+            headers: headers_for(user),
+            as: :json
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(user.profile.reload.state_region).to eq("MA")
+
+      patch "/api/v1/profiles/me",
+            params: { country: "Canada", state_region: "Ontario" },
+            headers: headers_for(user),
+            as: :json
+
+      expect(response).to have_http_status(:ok)
+      expect(user.profile.reload.country).to eq("Canada")
+      expect(user.profile.state_region).to eq("Ontario")
+    end
+
     it "rejects invalid experience_level" do
       patch "/api/v1/profiles/me",
             params: { experience_level: "expert" },

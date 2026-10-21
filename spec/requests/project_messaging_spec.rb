@@ -36,7 +36,7 @@ RSpec.describe "Project messaging", type: :request do
       mode: Project::MODE_TEAM,
       joining_mode: Project::JOINING_INSTANT,
       capacity: 3,
-      roles_needed: [ "Designer" ]
+      roles_needed: [ "UI/UX designer" ]
     )
     project.update!(
       ends_on: Date.current + 30,
@@ -49,7 +49,7 @@ RSpec.describe "Project messaging", type: :request do
       user: participant,
       role: ProjectMembership::ROLE_PARTICIPANT,
       status: ProjectMembership::STATUS_ACTIVE,
-      participant_role: "Designer",
+      participant_role: "UI/UX designer",
       join_source: ProjectMembership::JOIN_SOURCE_INSTANT
     )
     {

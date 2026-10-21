@@ -3,9 +3,9 @@
 require "rails_helper"
 
 RSpec.describe TaxonomySeeder do
-  it "seeds all four controlled taxonomies" do
+  it "seeds the controlled taxonomies" do
     expect(Taxonomy.pluck(:key)).to match_array(
-      %w[roles experience_levels organization_structures organization_goals]
+      %w[roles experience_levels organization_structures organization_goals skills]
     )
   end
 
@@ -26,7 +26,7 @@ RSpec.describe TaxonomySeeder do
   end
 
   it "orders terms with Other last" do
-    %w[roles organization_structures organization_goals].each do |taxonomy_key|
+    %w[roles skills organization_structures organization_goals].each do |taxonomy_key|
       terms = Taxonomy.find_by!(key: taxonomy_key).taxonomy_terms.order(:position)
 
       expect(terms.last.key).to eq("other"), "expected Other last in #{taxonomy_key}"

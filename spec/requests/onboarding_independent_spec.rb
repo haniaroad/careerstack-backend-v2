@@ -138,6 +138,13 @@ RSpec.describe "Independent onboarding", type: :request do
       expect(User.find_by!(email: "independent@example.com").profile.current_role_other).to eq("Museum educator")
     end
 
+    it "rejects a written-out US state" do
+      complete_onboarding(independent_onboarding_payload(state_region: "Massachusetts"))
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(User.find_by(email: "independent@example.com")&.profile&.state_region).not_to eq("Massachusetts")
+    end
+
     it "rejects a role term id that does not belong to the roles taxonomy" do
       complete_onboarding(independent_onboarding_payload(target_role_term_id: goal_term.id))
 

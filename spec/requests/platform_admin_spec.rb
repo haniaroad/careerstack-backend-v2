@@ -211,7 +211,7 @@ RSpec.describe "Platform admin", type: :request do
       mode: Project::MODE_TEAM,
       joining_mode: Project::JOINING_INSTANT,
       capacity: 3,
-      roles_needed: [ "Designer" ]
+      roles_needed: [ "UI/UX designer" ]
     )
     project.update!(status: Project::STATUS_ACTIVE, ends_on: Date.current + 20)
     review = PeerReview.create!(

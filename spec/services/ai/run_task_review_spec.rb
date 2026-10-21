@@ -87,7 +87,79 @@ RSpec.describe Ai::RunTaskReview do
     expect(user_text).to include("Project skill level constraint: beginner")
     expect(user_text).to include("Add Sound Effects and Music")
     expect(user_text).to include("Incorporate SFX and music for atmosphere")
-    expect(review.reload.prompt_version).to eq("v2")
+    expect(review.reload.prompt_version).to eq("v3")
     expect(review.decision).to eq(AiReview::DECISION_CORRECTIONS_REQUESTED)
+    expect(review.model).to eq("openai/gpt-4o-mini")
+  end
+
+  it "sends PDF bytes and image content and discloses an empty document" do
+    allow(Ai::Config).to receive(:configured?).and_return(true)
+    allow(Ai::Config).to receive(:nonessential_ai_stopped?).and_return(false)
+
+    project = Projects::CreateDraft.call(user: user, workspace: user.personal_workspace, title: "Evidence")
+    project.update!(ends_on: Date.current + 14, proposed_tasks: [
+      {
+        "title" => "Show the work",
+        "summary" => "Attach the file",
+        "recommended_due_date" => (Date.current + 7).iso8601,
+        "submission_expectations" => "A file"
+      }
+    ])
+    Projects::Confirm.call(project: project, user: user)
+    task = project.tasks.first
+    submission = Tasks::Submit.call(task: task, user: user, body: "See attached", enqueue_review: false)[:submission]
+    submission.files.attach(
+      io: StringIO.new("%PDF-1.4 not really"),
+      filename: "evidence.pdf",
+      content_type: "application/pdf"
+    )
+    submission.files.attach(
+      io: StringIO.new("png-bytes"),
+      filename: "shot.png",
+      content_type: "image/png"
+    )
+    submission.files.attach(
+      io: StringIO.new(""),
+      filename: "notes.docx",
+      content_type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
+
+    captured = nil
+    provider = Object.new
+    provider.define_singleton_method(:complete_structured) do |**kwargs|
+      captured = kwargs
+      Ai::CompletionResult.new(
+        content: {
+          decision: "approved",
+          feedback: "The PDF and image meet the criteria",
+          unmet_requirements: [],
+          next_action: "None",
+          analysis_incomplete: true,
+          unsupported_items: []
+        }.to_json,
+        model: "openai/gpt-6-luna",
+        total_tokens: 12
+      )
+    end
+    Ai::Provider.stub!(provider)
+
+    review = AiReview.create!(
+      task: task,
+      task_submission: submission,
+      user: user,
+      status: AiReview::STATUS_PENDING,
+      content_fingerprint: submission.content_fingerprint
+    )
+    described_class.call(review: review)
+
+    content = captured[:messages].find { |message| message[:role] == "user" }[:content]
+    expect(captured[:model]).to eq("openai/gpt-6-luna")
+    expect(content).to be_an(Array)
+    expect(content.any? { |part| part[:type] == "file" && part.dig(:file, :filename) == "evidence.pdf" }).to be(true)
+    expect(content.any? { |part| part[:type] == "image_url" && part.dig(:image_url, :url).start_with?("data:image/png;base64,") }).to be(true)
+    text = content.find { |part| part[:type] == "text" }[:text]
+    expect(text).to include("notes.docx")
+    expect(review.reload.model).to eq("openai/gpt-6-luna")
+    expect(review.analysis_incomplete).to be(true)
   end
 end

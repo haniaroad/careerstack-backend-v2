@@ -52,7 +52,7 @@ RSpec.describe "Organization project access", type: :request do
       mode: Project::MODE_TEAM,
       joining_mode: joining_mode,
       capacity: 3,
-      roles_needed: [ "Designer" ],
+      roles_needed: [ "UI/UX designer" ],
       program_id: program.id
     )
     project.update!(
@@ -98,7 +98,7 @@ RSpec.describe "Organization project access", type: :request do
 
   it "offers Assign to me only to an active participant" do
     ctx = org_team!(joining_mode: Project::JOINING_INSTANT)
-    Projects::InstantJoin.call(project: ctx[:project], user: ctx[:participant], participant_role: "Designer")
+    Projects::InstantJoin.call(project: ctx[:project], user: ctx[:participant], participant_role: "UI/UX designer")
     task = ctx[:project].tasks.first
     switch_to!(ctx[:participant], ctx[:organization].workspace)
 
@@ -127,7 +127,7 @@ RSpec.describe "Organization project access", type: :request do
 
     post "/api/v1/projects/#{application_ctx[:project].id}/applications",
          params: {
-           requested_role: "Designer",
+           requested_role: "UI/UX designer",
            motivation: "I can help this week",
            availability_confirmed: true
          }.to_json,
@@ -142,7 +142,7 @@ RSpec.describe "Organization project access", type: :request do
     create_membership(organization: instant_ctx[:organization], user: joiner, role: OrganizationMembership::PARTICIPANT)
 
     post "/api/v1/projects/#{instant_ctx[:project].id}/join",
-         params: { participant_role: "Designer" }.to_json,
+         params: { participant_role: "UI/UX designer" }.to_json,
          headers: json_headers(joiner)
 
     expect(response).to have_http_status(:created)
@@ -157,7 +157,7 @@ RSpec.describe "Organization project access", type: :request do
       mode: Project::MODE_TEAM,
       joining_mode: Project::JOINING_APPLICATION,
       capacity: 2,
-      roles_needed: [ "Designer" ]
+      roles_needed: [ "UI/UX designer" ]
     )
     project.update!(ends_on: Date.current + 20)
     Projects::Confirm.call(project: project, user: owner)
@@ -166,7 +166,7 @@ RSpec.describe "Organization project access", type: :request do
 
     post "/api/v1/projects/#{project.id}/applications",
          params: {
-           requested_role: "Designer",
+           requested_role: "UI/UX designer",
            motivation: "Please let me in",
            availability_confirmed: true
          }.to_json,
@@ -209,7 +209,7 @@ RSpec.describe "Organization project access", type: :request do
         user: member,
         role: ProjectMembership::ROLE_PARTICIPANT,
         status: ProjectMembership::STATUS_ACTIVE,
-        participant_role: "Designer",
+        participant_role: "UI/UX designer",
         join_source: ProjectMembership::JOIN_SOURCE_INSTANT
       )
     end

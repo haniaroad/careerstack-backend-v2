@@ -24,11 +24,12 @@ module Projects
       @workspace = workspace
       @title = title
       @summary = summary
-      @skills = Array(skills).map { |s| s.to_s.strip }.reject(&:blank?).uniq
+      @skills = Projects::TaxonomySelection.validate_skills!(skills)
       @mode = mode.to_s.presence || Project::MODE_SOLO
       @joining_mode = joining_mode.presence
       @capacity = capacity
       @roles_needed = Array(roles_needed).map { |s| s.to_s.strip }.reject(&:blank?).uniq
+      @roles_needed = Projects::TaxonomySelection.validate_roles!(@roles_needed) if @mode == Project::MODE_TEAM && @roles_needed.any?
       @visibility = visibility
       @program_id = program_id
     end
