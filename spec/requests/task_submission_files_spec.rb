@@ -11,7 +11,7 @@ RSpec.describe "Task submission files", type: :request do
       mode: Project::MODE_TEAM,
       joining_mode: Project::JOINING_INSTANT,
       capacity: 3,
-      roles_needed: [ "Designer" ]
+      roles_needed: [ "UI/UX designer" ]
     )
     project.update!(
       ends_on: Date.current + 30,
@@ -27,7 +27,7 @@ RSpec.describe "Task submission files", type: :request do
     creator = create_onboarded_adult(email: "file-creator-#{SecureRandom.hex(3)}@example.com")
     member = create_onboarded_adult(email: "file-member-#{SecureRandom.hex(3)}@example.com")
     project = personal_team!(creator: creator)
-    Projects::InstantJoin.call(project: project, user: member, participant_role: "Designer")
+    Projects::InstantJoin.call(project: project, user: member, participant_role: "UI/UX designer")
     task = project.tasks.first
 
     patch "/api/v1/tasks/#{task.id}/assignment",

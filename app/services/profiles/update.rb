@@ -29,6 +29,15 @@ module Profiles
         @params[:interests] = interests
       end
 
+      if @params.key?("country") || @params.key?("state_region")
+        country, region = Locations.normalize!(
+          country: @params.fetch("country", profile.country),
+          state_region: @params.fetch("state_region", profile.state_region)
+        )
+        @params["country"] = country
+        @params["state_region"] = region
+      end
+
       if @params.key?(:experience_level) && Profile::EXPERIENCE_LEVELS.exclude?(@params[:experience_level].to_s)
         raise DomainError.new("experience_level must be beginner, intermediate, or advanced", code: "validation_error")
       end
@@ -60,6 +69,8 @@ module Profiles
       # Slug is never regenerated on display-name change.
       Profiles::AssignSlug.call(profile: profile) if profile.slug.blank?
       profile.reload
+    rescue Locations::Invalid => e
+      raise DomainError.new(e.message, code: "validation_error")
     end
   end
 end

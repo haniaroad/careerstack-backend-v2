@@ -21,7 +21,7 @@ module Projects
         updates[:summary] = @attrs[:summary].presence
       end
       if @attrs.key?(:skills) && @attrs[:skills] != :unchanged
-        updates[:skills] = Array(@attrs[:skills]).map { |s| s.to_s.strip }.reject(&:blank?).uniq
+        updates[:skills] = Projects::TaxonomySelection.validate_skills!(@attrs[:skills], existing: @project.skills)
       end
       %i[objective project_type expected_duration definition_of_done submission_expectations].each do |key|
         next unless @attrs.key?(key) && @attrs[key] != :unchanged
@@ -32,7 +32,16 @@ module Projects
         updates[:ends_on] = @attrs[:ends_on].present? ? Date.parse(@attrs[:ends_on].to_s) : nil
       end
       if @attrs.key?(:roles_needed) && @attrs[:roles_needed] != :unchanged
-        updates[:roles_needed] = Array(@attrs[:roles_needed]).map { |s| s.to_s.strip }.reject(&:blank?).uniq
+        mode_for_roles = if @attrs.key?(:mode) && @attrs[:mode] != :unchanged
+          @attrs[:mode].to_s
+        else
+          @project.mode
+        end
+        updates[:roles_needed] = if mode_for_roles == Project::MODE_TEAM
+          Projects::TaxonomySelection.validate_roles!(@attrs[:roles_needed], existing: @project.roles_needed)
+        else
+          []
+        end
       end
       if @attrs.key?(:proposed_tasks) && @attrs[:proposed_tasks] != :unchanged
         updates[:proposed_tasks] = Array(@attrs[:proposed_tasks])

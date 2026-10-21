@@ -88,6 +88,8 @@ module Ai
         - time_available: #{constraints['time_available']}
         - audience: solo (just me)
         - Set project_end_date approximately #{constraints['time_available'] || '2 weeks'} after today.
+        - skills_demonstrated MUST use only these labels: #{Projects::TaxonomySelection.skill_labels.join(", ")}
+        - roles_needed MUST use only these labels: #{Projects::TaxonomySelection.role_labels.join(", ")}
       TEXT
     end
 

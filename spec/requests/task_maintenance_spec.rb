@@ -108,14 +108,14 @@ RSpec.describe "Task maintenance API", type: :request do
       mode: Project::MODE_TEAM,
       joining_mode: Project::JOINING_INSTANT,
       capacity: 3,
-      roles_needed: [ "Designer" ]
+      roles_needed: [ "UI/UX designer" ]
     )
     project.update!(
       ends_on: Date.current + 30,
       proposed_tasks: [ { "title" => "Shared task", "summary" => "Do it" } ]
     )
     Projects::Confirm.call(project: project, user: creator)
-    Projects::InstantJoin.call(project: project.reload, user: joiner, participant_role: "Designer")
+    Projects::InstantJoin.call(project: project.reload, user: joiner, participant_role: "UI/UX designer")
     task = project.tasks.first
 
     patch "/api/v1/tasks/#{task.id}",

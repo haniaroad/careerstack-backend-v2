@@ -36,6 +36,10 @@ module Onboarding
         raise Error, "#{field} is required" if attributes[field].blank?
       end
 
+      country, region = Locations.normalize!(country: attributes[:country], state_region: attributes[:state_region])
+      attributes[:country] = country
+      attributes[:state_region] = region
+
       unless Profile::EXPERIENCE_LEVELS.include?(attributes[:experience_level])
         raise Error, "experience_level must be one of #{Profile::EXPERIENCE_LEVELS.join(', ')}"
       end
@@ -47,6 +51,8 @@ module Onboarding
       validate_term!(:target_role_term_id)
 
       self
+    rescue Locations::Invalid => e
+      raise Error, e.message
     end
 
     private

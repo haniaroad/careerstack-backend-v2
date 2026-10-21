@@ -7,6 +7,8 @@ module Api
         taxonomies = Taxonomy.includes(:taxonomy_terms).order(:key)
 
         render json: {
+          countries: Locations::COUNTRIES,
+          us_state_abbreviations: Locations::US_STATE_ABBREVIATIONS,
           taxonomies: taxonomies.map do |taxonomy|
             {
               key: taxonomy.key,

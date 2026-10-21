@@ -13,7 +13,7 @@ RSpec.describe PeerReview do
       mode: Project::MODE_TEAM,
       joining_mode: Project::JOINING_INSTANT,
       capacity: 3,
-      roles_needed: [ "Designer" ]
+      roles_needed: [ "UI/UX designer" ]
     )
     project.update!(status: Project::STATUS_COMPLETED, completed_at: Time.current, ends_on: Date.current + 14)
     ProjectMembership.create!(project: project, user: creator, role: ProjectMembership::ROLE_CREATOR, status: ProjectMembership::STATUS_ACTIVE)
@@ -22,7 +22,7 @@ RSpec.describe PeerReview do
       user: participant,
       role: ProjectMembership::ROLE_PARTICIPANT,
       status: ProjectMembership::STATUS_ACTIVE,
-      participant_role: "Designer",
+      participant_role: "UI/UX designer",
       join_source: ProjectMembership::JOIN_SOURCE_INSTANT
     )
     { creator: creator, participant: participant, project: project }
@@ -117,7 +117,7 @@ RSpec.describe PeerReviewReport do
       mode: Project::MODE_TEAM,
       joining_mode: Project::JOINING_INSTANT,
       capacity: 2,
-      roles_needed: [ "Designer" ]
+      roles_needed: [ "UI/UX designer" ]
     )
     project.update!(status: Project::STATUS_COMPLETED, completed_at: Time.current, ends_on: Date.current + 14)
     review = PeerReview.create!(

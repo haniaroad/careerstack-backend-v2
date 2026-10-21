@@ -122,8 +122,14 @@ module Organizations
         raise Error, "#{field} is required" if attributes[field].blank?
       end
 
+      country, region = Locations.normalize!(country: attributes[:country], state_region: attributes[:state_region])
+      attributes[:country] = country
+      attributes[:state_region] = region
+
       validate_choice!(attributes, :structure, "organization_structures", "structure")
       validate_choice!(attributes, :primary_goal, "organization_goals", "primary goal")
+    rescue Locations::Invalid => e
+      raise Error, e.message
     end
 
     # Either a controlled term or free text for the Other option.

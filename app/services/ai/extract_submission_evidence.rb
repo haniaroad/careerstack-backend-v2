@@ -5,7 +5,7 @@ module Ai
     MAX_TEXT_CHARS = 12_000
     MAX_PDF_PAGES = 30
 
-    Result = Struct.new(:text_parts, :unsupported_items, :image_blobs, :analysis_incomplete, keyword_init: true)
+    Result = Struct.new(:text_parts, :unsupported_items, :image_blobs, :pdf_blobs, :analysis_incomplete, keyword_init: true)
 
     def self.call(submission:)
       new(submission: submission).call
@@ -19,6 +19,7 @@ module Ai
       parts = []
       unsupported = []
       images = []
+      pdfs = []
 
       if @submission.body.present?
         parts << "Submission text:\n#{@submission.body.to_s.truncate(MAX_TEXT_CHARS)}"
@@ -47,11 +48,20 @@ module Ai
           next
         end
 
+        if content_type == "application/pdf"
+          pdfs << blob
+          extracted = extract_with_cache(blob)
+          if extracted[:ok] && extracted[:text].present?
+            parts << "File #{blob.filename}:\n#{extracted[:text].to_s.truncate(MAX_TEXT_CHARS)}"
+          end
+          next
+        end
+
         extracted = extract_with_cache(blob)
-        if extracted[:ok]
+        if extracted[:ok] && extracted[:text].present?
           parts << "File #{blob.filename}:\n#{extracted[:text].to_s.truncate(MAX_TEXT_CHARS)}"
         else
-          unsupported << item_for_blob(blob, extracted[:error] || "extraction_failed")
+          unsupported << item_for_blob(blob, extracted[:error] || "extraction_empty")
         end
       end
 
@@ -59,6 +69,7 @@ module Ai
         text_parts: parts,
         unsupported_items: unsupported,
         image_blobs: images,
+        pdf_blobs: pdfs,
         analysis_incomplete: unsupported.any?
       )
     end

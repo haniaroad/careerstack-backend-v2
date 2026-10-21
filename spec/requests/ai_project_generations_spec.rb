@@ -15,8 +15,8 @@ RSpec.describe "AI project generations API", type: :request do
       "expected_duration" => "2 weeks",
       "project_end_date" => future_end,
       "definition_of_done" => "Live URL",
-      "skills_demonstrated" => [ "HTML" ],
-      "roles_needed" => [ "Builder" ],
+      "skills_demonstrated" => [ "Web development" ],
+      "roles_needed" => [ "Software engineer" ],
       "submission_expectations" => "URL",
       "proposed_tasks" => [
         {

@@ -109,14 +109,14 @@ RSpec.describe Projects::Lifecycle::Evaluate do
       mode: Project::MODE_TEAM,
       joining_mode: Project::JOINING_APPLICATION,
       capacity: 3,
-      roles_needed: [ "Engineer" ]
+      roles_needed: [ "Software engineer" ]
     )
     project.update!(ends_on: Date.current + 14)
     Projects::Confirm.call(project: project, user: creator)
     application = Projects::SubmitApplication.call(
       project: project.reload,
       user: applicant,
-      requested_role: "Engineer",
+      requested_role: "Software engineer",
       motivation: "Hi",
       availability_confirmed: true
     )

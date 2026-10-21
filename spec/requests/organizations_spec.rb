@@ -152,6 +152,13 @@ RSpec.describe "Organization creation", type: :request do
       expect(response.parsed_body.dig("error", "message")).to match(/name is required/)
     end
 
+    it "rejects a written-out US state" do
+      create_org(organization_payload(state_region: "California"))
+
+      expect(response).to have_http_status(:unprocessable_entity)
+      expect(Organization.count).to eq(0)
+    end
+
     it "rejects a missing state or region" do
       create_org(organization_payload(state_region: nil))
 

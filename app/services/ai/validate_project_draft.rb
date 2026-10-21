@@ -42,6 +42,9 @@ module Ai
       tasks = @payload["proposed_tasks"]
       raise schema_error("proposed_tasks must be a non-empty array") unless tasks.is_a?(Array) && tasks.any?
 
+      @payload["skills_demonstrated"] = normalize_labels!(@payload["skills_demonstrated"], Projects::TaxonomySelection.skill_labels, "skills_demonstrated")
+      @payload["roles_needed"] = normalize_labels!(@payload["roles_needed"], Projects::TaxonomySelection.role_labels, "roles_needed")
+
       tasks.each_with_index do |task, index|
         raise schema_error("proposed_tasks[#{index}] must be an object") unless task.is_a?(Hash)
         %w[title summary recommended_due_date submission_expectations].each do |key|
@@ -56,6 +59,17 @@ module Ai
     end
 
     private
+
+    def normalize_labels!(values, allowed, field)
+      raise schema_error("#{field} must be an array") unless values.is_a?(Array)
+
+      values.map do |value|
+        match = allowed.find { |label| label.casecmp(value.to_s.strip).zero? }
+        raise schema_error("#{field} includes an unknown value") if match.nil?
+
+        match
+      end.uniq
+    end
 
     def parse_date!(value, field:)
       Date.iso8601(value.to_s)

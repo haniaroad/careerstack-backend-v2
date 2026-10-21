@@ -60,9 +60,7 @@ module Projects
       unless @capacity.between?(1, 5)
         raise DomainError.new("Capacity must be between 1 and 5", code: "validation_error")
       end
-      if @roles_needed.empty?
-        raise DomainError.new("At least one role is required", code: "validation_error")
-      end
+      @roles_needed = Projects::TaxonomySelection.validate_roles!(@roles_needed)
     end
 
     def cancel_in_flight_ai_reviews!

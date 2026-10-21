@@ -42,7 +42,7 @@ RSpec.describe "Notification domain hooks" do
       mode: Project::MODE_TEAM,
       joining_mode: joining_mode,
       capacity: 3,
-      roles_needed: [ "Designer" ],
+      roles_needed: [ "UI/UX designer" ],
       program_id: program.id
     )
     project.update!(
@@ -68,7 +68,7 @@ RSpec.describe "Notification domain hooks" do
 
   it "notifies the assignee on assign and does not notify the actor" do
     ctx = setup_team
-    Projects::InstantJoin.call(project: ctx[:project], user: ctx[:participant], participant_role: "Designer")
+    Projects::InstantJoin.call(project: ctx[:project], user: ctx[:participant], participant_role: "UI/UX designer")
     task = ctx[:project].tasks.first
 
     Tasks::Assign.call(task: task, actor: ctx[:creator], assignee: ctx[:participant])
@@ -83,7 +83,7 @@ RSpec.describe "Notification domain hooks" do
       project: ctx[:project],
       inviter: ctx[:creator],
       invitee: ctx[:participant],
-      requested_role: "Designer"
+      requested_role: "UI/UX designer"
     )
 
     expect(invitation).to be_present
@@ -96,7 +96,7 @@ RSpec.describe "Notification domain hooks" do
     application = Projects::SubmitApplication.call(
       project: ctx[:project],
       user: ctx[:participant],
-      requested_role: "Designer",
+      requested_role: "UI/UX designer",
       motivation: "I can design",
       availability_confirmed: true
     )
@@ -120,14 +120,14 @@ RSpec.describe "Notification domain hooks" do
       mode: Project::MODE_TEAM,
       joining_mode: Project::JOINING_APPLICATION,
       capacity: 2,
-      roles_needed: [ "Engineer" ]
+      roles_needed: [ "Software engineer" ]
     )
     project.update!(ends_on: Date.current + 30)
     Projects::Confirm.call(project: project, user: creator)
     application = Projects::SubmitApplication.call(
       project: project.reload,
       user: applicant,
-      requested_role: "Engineer",
+      requested_role: "Software engineer",
       motivation: "Please",
       availability_confirmed: true
     )

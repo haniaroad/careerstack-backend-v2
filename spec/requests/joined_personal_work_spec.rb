@@ -11,7 +11,7 @@ RSpec.describe "Joined personal work", type: :request do
       mode: Project::MODE_TEAM,
       joining_mode: Project::JOINING_INSTANT,
       capacity: 3,
-      roles_needed: [ "Designer" ]
+      roles_needed: [ "UI/UX designer" ]
     )
     project.update!(
       ends_on: Date.current + 30,
@@ -29,7 +29,7 @@ RSpec.describe "Joined personal work", type: :request do
     joiner = create_onboarded_adult(email: "joined-member-#{SecureRandom.hex(3)}@example.com")
     joiner.profile.update!(display_name: "Jordan Joiner")
     project = personal_team!(creator: creator, title: "Shared personal team")
-    Projects::InstantJoin.call(project: project, user: joiner, participant_role: "Designer")
+    Projects::InstantJoin.call(project: project, user: joiner, participant_role: "UI/UX designer")
     task = project.tasks.first
 
     other_creator = create_onboarded_adult(email: "departed-creator-#{SecureRandom.hex(3)}@example.com")
@@ -39,7 +39,7 @@ RSpec.describe "Joined personal work", type: :request do
       user: joiner,
       role: ProjectMembership::ROLE_PARTICIPANT,
       status: ProjectMembership::STATUS_DEPARTED,
-      participant_role: "Designer",
+      participant_role: "UI/UX designer",
       join_source: ProjectMembership::JOIN_SOURCE_INSTANT
     )
 
@@ -57,7 +57,7 @@ RSpec.describe "Joined personal work", type: :request do
       visibility: Project::VISIBILITY_PRIVATE,
       joining_mode: Project::JOINING_INSTANT,
       capacity: 2,
-      roles_needed: [ "Designer" ],
+      roles_needed: [ "UI/UX designer" ],
       ends_on: Date.current + 20
     )
     ProjectMembership.create!(
@@ -65,7 +65,7 @@ RSpec.describe "Joined personal work", type: :request do
       user: joiner,
       role: ProjectMembership::ROLE_PARTICIPANT,
       status: ProjectMembership::STATUS_ACTIVE,
-      participant_role: "Designer",
+      participant_role: "UI/UX designer",
       join_source: ProjectMembership::JOIN_SOURCE_INSTANT
     )
 
@@ -111,7 +111,7 @@ RSpec.describe "Joined personal work", type: :request do
     pending = ProjectApplication.create!(
       project: project,
       applicant: public_applicant,
-      requested_role: "Designer",
+      requested_role: "UI/UX designer",
       motivation: "I can help with the interface",
       availability_confirmed: true,
       created_at: 2.days.ago
@@ -133,7 +133,7 @@ RSpec.describe "Joined personal work", type: :request do
     expect(public_row["applicant_display_name"]).to eq("Taylor Brooks")
     expect(public_row["profile_slug"]).to eq(public_applicant.profile.slug)
     expect(public_row["status"]).to eq("pending")
-    expect(public_row["requested_role"]).to eq("Designer")
+    expect(public_row["requested_role"]).to eq("UI/UX designer")
     expect(public_row["created_at"]).to be_present
 
     hidden_row = applications.second

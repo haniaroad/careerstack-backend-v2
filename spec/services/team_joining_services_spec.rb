@@ -28,7 +28,7 @@ RSpec.describe "Team joining services" do
   end
 
   def setup_org_team(creator_email:, participant_emails: [], capacity: 3, joining_mode: Project::JOINING_INSTANT,
-                     roles_needed: [ "Designer" ], proposed_tasks: nil)
+                     roles_needed: [ "UI/UX designer" ], proposed_tasks: nil)
     creator = create_onboarded_adult(email: creator_email)
     organization = create_organization(name: "Team Org #{SecureRandom.hex(3)}")
     create_membership(organization: organization, user: creator, role: OrganizationMembership::ADMIN)
@@ -83,7 +83,7 @@ RSpec.describe "Team joining services" do
           title: "No joining mode",
           mode: Project::MODE_TEAM,
           capacity: 2,
-          roles_needed: [ "Engineer" ]
+          roles_needed: [ "Software engineer" ]
         )
       }.to raise_error(DomainError, /Joining mode is required/)
 
@@ -95,7 +95,7 @@ RSpec.describe "Team joining services" do
           mode: Project::MODE_TEAM,
           joining_mode: Project::JOINING_INSTANT,
           capacity: 0,
-          roles_needed: [ "Engineer" ]
+          roles_needed: [ "Software engineer" ]
         )
       }.to raise_error(DomainError, /Capacity must be between 1 and 5/)
 
@@ -122,14 +122,14 @@ RSpec.describe "Team joining services" do
         mode: Project::MODE_TEAM,
         joining_mode: Project::JOINING_APPLICATION,
         capacity: 3,
-        roles_needed: [ "PM", "Engineer" ]
+        roles_needed: [ "Project manager", "Software engineer" ]
       )
 
       expect(project).to have_attributes(
         mode: Project::MODE_TEAM,
         joining_mode: Project::JOINING_APPLICATION,
         capacity: 3,
-        roles_needed: [ "PM", "Engineer" ],
+        roles_needed: [ "Project manager", "Software engineer" ],
         status: Project::STATUS_DRAFT
       )
       expect(Credits::Balance.remaining(owner: user)).to eq(1)
@@ -168,13 +168,13 @@ RSpec.describe "Team joining services" do
       joiner = ctx[:participants].first
 
       expect {
-        Projects::InstantJoin.call(project: ctx[:project], user: joiner, participant_role: "Designer")
+        Projects::InstantJoin.call(project: ctx[:project], user: joiner, participant_role: "UI/UX designer")
       }.to change { Credits::Balance.remaining(owner: ctx[:organization]) }.by(-1)
 
       membership = ctx[:project].memberships.active.find_by!(user: joiner)
       expect(membership).to have_attributes(
         role: ProjectMembership::ROLE_PARTICIPANT,
-        participant_role: "Designer",
+        participant_role: "UI/UX designer",
         join_source: ProjectMembership::JOIN_SOURCE_INSTANT
       )
     end
@@ -187,7 +187,7 @@ RSpec.describe "Team joining services" do
       )
       confirm_team!(first)
       joiner = first[:participants].first
-      Projects::InstantJoin.call(project: first[:project], user: joiner, participant_role: "Designer")
+      Projects::InstantJoin.call(project: first[:project], user: joiner, participant_role: "UI/UX designer")
 
       second = setup_org_team(
         creator_email: "busy-creator-b@example.com",
@@ -198,7 +198,7 @@ RSpec.describe "Team joining services" do
       grant_credits!(owner: second[:organization], amount: 1, actor: second[:creator])
 
       expect {
-        Projects::InstantJoin.call(project: second[:project], user: joiner, participant_role: "Engineer")
+        Projects::InstantJoin.call(project: second[:project], user: joiner, participant_role: "Software engineer")
       }.to raise_error(ActiveParticipationConflict)
     end
 
@@ -209,10 +209,10 @@ RSpec.describe "Team joining services" do
         capacity: 1
       )
       confirm_team!(ctx)
-      Projects::InstantJoin.call(project: ctx[:project], user: ctx[:participants].first, participant_role: "Designer")
+      Projects::InstantJoin.call(project: ctx[:project], user: ctx[:participants].first, participant_role: "UI/UX designer")
 
       expect {
-        Projects::InstantJoin.call(project: ctx[:project], user: ctx[:participants].second, participant_role: "Engineer")
+        Projects::InstantJoin.call(project: ctx[:project], user: ctx[:participants].second, participant_role: "Software engineer")
       }.to raise_error(DomainError) { |error|
         expect(error.code).to eq("capacity_full")
         expect(error.status).to eq(:conflict)
@@ -239,7 +239,7 @@ RSpec.describe "Team joining services" do
         Projects::InstantJoin.call(
           project: ctx[:project],
           user: ctx[:participants].first,
-          participant_role: "Designer"
+          participant_role: "UI/UX designer"
         )
       }.to raise_error(InsufficientCredits)
 
@@ -262,7 +262,7 @@ RSpec.describe "Team joining services" do
       application = Projects::SubmitApplication.call(
         project: ctx[:project],
         user: applicant,
-        requested_role: "Designer",
+        requested_role: "UI/UX designer",
         motivation: "I want to help ship this",
         availability_confirmed: true,
         skills: [ "Figma" ]
@@ -292,7 +292,7 @@ RSpec.describe "Team joining services" do
       application = Projects::SubmitApplication.call(
         project: ctx[:project],
         user: applicant,
-        requested_role: "Designer",
+        requested_role: "UI/UX designer",
         motivation: "Please accept me",
         availability_confirmed: true
       )
@@ -330,7 +330,7 @@ RSpec.describe "Team joining services" do
         project: ctx[:project],
         inviter: ctx[:creator],
         invitee: invitee,
-        requested_role: "Engineer"
+        requested_role: "Software engineer"
       )
       expect(invitation.status).to eq(ProjectInvitation::STATUS_PENDING)
 
@@ -341,7 +341,7 @@ RSpec.describe "Team joining services" do
       expect(invitation.reload.status).to eq(ProjectInvitation::STATUS_ACCEPTED)
       membership = ctx[:project].memberships.active.find_by!(user: invitee)
       expect(membership.join_source).to eq(ProjectMembership::JOIN_SOURCE_INVITE)
-      expect(membership.participant_role).to eq("Engineer")
+      expect(membership.participant_role).to eq("Software engineer")
     end
   end
 
@@ -357,7 +357,7 @@ RSpec.describe "Team joining services" do
       )
       confirm_team!(ctx)
       member = ctx[:participants].first
-      Projects::InstantJoin.call(project: ctx[:project], user: member, participant_role: "Designer")
+      Projects::InstantJoin.call(project: ctx[:project], user: member, participant_role: "UI/UX designer")
       task = ctx[:project].tasks.first
       Tasks::Assign.call(task: task, actor: ctx[:creator], assignee: member)
 
@@ -385,8 +385,8 @@ RSpec.describe "Team joining services" do
       )
       confirm_team!(ctx)
       active_member, departed = ctx[:participants]
-      Projects::InstantJoin.call(project: ctx[:project], user: active_member, participant_role: "Designer")
-      Projects::InstantJoin.call(project: ctx[:project], user: departed, participant_role: "Engineer")
+      Projects::InstantJoin.call(project: ctx[:project], user: active_member, participant_role: "UI/UX designer")
+      Projects::InstantJoin.call(project: ctx[:project], user: departed, participant_role: "Software engineer")
       Projects::Leave.call(project: ctx[:project], user: departed, reason_category: "schedule_conflict")
 
       # After confirm (-1) and two joins (-2): trial 3 → 0. Departed already left with no restore.
@@ -439,7 +439,7 @@ RSpec.describe "Team joining services" do
         user: creator,
         joining_mode: Project::JOINING_INSTANT,
         capacity: 2,
-        roles_needed: [ "Designer" ]
+        roles_needed: [ "UI/UX designer" ]
       )
 
       expect(converted.mode).to eq(Project::MODE_TEAM)
@@ -465,12 +465,12 @@ RSpec.describe "Team joining services" do
         user: ctx[:creator],
         joining_mode: Project::JOINING_INSTANT,
         capacity: 2,
-        roles_needed: [ "Designer" ]
+        roles_needed: [ "UI/UX designer" ]
       )
       Projects::InstantJoin.call(
         project: ctx[:project].reload,
         user: ctx[:participants].first,
-        participant_role: "Designer"
+        participant_role: "UI/UX designer"
       )
 
       expect {
@@ -491,7 +491,7 @@ RSpec.describe "Team joining services" do
       )
       confirm_team!(ctx)
       member = ctx[:participants].first
-      Projects::InstantJoin.call(project: ctx[:project], user: member, participant_role: "Designer")
+      Projects::InstantJoin.call(project: ctx[:project], user: member, participant_role: "UI/UX designer")
       task = ctx[:project].tasks.first
 
       expect {
@@ -525,8 +525,8 @@ RSpec.describe "Team joining services" do
       confirm_team!(ctx)
       member = ctx[:participants].first
       other = ctx[:participants].second
-      Projects::InstantJoin.call(project: ctx[:project], user: member, participant_role: "Designer")
-      Projects::InstantJoin.call(project: ctx[:project], user: other, participant_role: "Designer")
+      Projects::InstantJoin.call(project: ctx[:project], user: member, participant_role: "UI/UX designer")
+      Projects::InstantJoin.call(project: ctx[:project], user: other, participant_role: "UI/UX designer")
       task = ctx[:project].tasks.first
 
       expect {

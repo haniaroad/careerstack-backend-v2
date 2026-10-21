@@ -34,7 +34,7 @@ RSpec.describe "Peer review services" do
       mode: Project::MODE_TEAM,
       joining_mode: Project::JOINING_INSTANT,
       capacity: 3,
-      roles_needed: [ "Designer" ]
+      roles_needed: [ "UI/UX designer" ]
     )
     project.update!(
       ends_on: Date.current + 30,
@@ -54,7 +54,7 @@ RSpec.describe "Peer review services" do
       user: participant,
       role: ProjectMembership::ROLE_PARTICIPANT,
       status: ProjectMembership::STATUS_ACTIVE,
-      participant_role: "Designer",
+      participant_role: "UI/UX designer",
       join_source: ProjectMembership::JOIN_SOURCE_INSTANT
     )
     project.tasks.find_each do |task|
@@ -93,12 +93,12 @@ RSpec.describe "Peer review services" do
       mode: Project::MODE_TEAM,
       joining_mode: Project::JOINING_INSTANT,
       capacity: 4,
-      roles_needed: [ "Designer" ]
+      roles_needed: [ "UI/UX designer" ]
     )
     project.update!(ends_on: Date.current + 30, proposed_tasks: [ { "title" => "One", "summary" => "x", "recommended_due_date" => (Date.current + 5).iso8601, "submission_expectations" => "Text" } ])
     Projects::Confirm.call(project: project, user: creator)
-    ProjectMembership.create!(project: project.reload, user: participant, role: ProjectMembership::ROLE_PARTICIPANT, status: ProjectMembership::STATUS_ACTIVE, participant_role: "Designer", join_source: ProjectMembership::JOIN_SOURCE_INSTANT)
-    ProjectMembership.create!(project: project, user: departed, role: ProjectMembership::ROLE_PARTICIPANT, status: ProjectMembership::STATUS_DEPARTED, participant_role: "Designer", join_source: ProjectMembership::JOIN_SOURCE_INSTANT)
+    ProjectMembership.create!(project: project.reload, user: participant, role: ProjectMembership::ROLE_PARTICIPANT, status: ProjectMembership::STATUS_ACTIVE, participant_role: "UI/UX designer", join_source: ProjectMembership::JOIN_SOURCE_INSTANT)
+    ProjectMembership.create!(project: project, user: departed, role: ProjectMembership::ROLE_PARTICIPANT, status: ProjectMembership::STATUS_DEPARTED, participant_role: "UI/UX designer", join_source: ProjectMembership::JOIN_SOURCE_INSTANT)
 
     project.update_columns(ends_on: Date.current - 1)
     expect(project.reload.grace_period?).to eq(true)
@@ -140,11 +140,11 @@ RSpec.describe "Peer review services" do
       mode: Project::MODE_TEAM,
       joining_mode: Project::JOINING_INSTANT,
       capacity: 2,
-      roles_needed: [ "Designer" ]
+      roles_needed: [ "UI/UX designer" ]
     )
     project.update!(status: Project::STATUS_COMPLETED, completed_at: 1.day.ago, ends_on: Date.current + 14)
     ProjectMembership.create!(project: project, user: creator, role: ProjectMembership::ROLE_CREATOR, status: ProjectMembership::STATUS_ACTIVE)
-    ProjectMembership.create!(project: project, user: participant, role: ProjectMembership::ROLE_PARTICIPANT, status: ProjectMembership::STATUS_ACTIVE, participant_role: "Designer", join_source: ProjectMembership::JOIN_SOURCE_INSTANT)
+    ProjectMembership.create!(project: project, user: participant, role: ProjectMembership::ROLE_PARTICIPANT, status: ProjectMembership::STATUS_ACTIVE, participant_role: "UI/UX designer", join_source: ProjectMembership::JOIN_SOURCE_INSTANT)
 
     expect {
       PeerReviews::Backfill.call

@@ -40,7 +40,7 @@ RSpec.describe Projects::Lifecycle::ActionGate do
       mode: Project::MODE_TEAM,
       joining_mode: Project::JOINING_INSTANT,
       capacity: 3,
-      roles_needed: [ "Designer" ],
+      roles_needed: [ "UI/UX designer" ],
       program_id: program.id
     )
     project.update!(
@@ -55,7 +55,7 @@ RSpec.describe Projects::Lifecycle::ActionGate do
       ]
     )
     Projects::Confirm.call(project: project, user: creator)
-    Projects::InstantJoin.call(project: project.reload, user: participant, participant_role: "Designer")
+    Projects::InstantJoin.call(project: project.reload, user: participant, participant_role: "UI/UX designer")
     task = project.reload.tasks.first
     Tasks::Assign.call(task: task, actor: creator, assignee: participant)
 
@@ -79,7 +79,7 @@ RSpec.describe Projects::Lifecycle::ActionGate do
     }.to raise_error(DomainError) { |e| expect(e.code).to eq("lifecycle_action_denied") }
 
     expect {
-      Projects::InstantJoin.call(project: ctx[:project].reload, user: ctx[:joiner], participant_role: "Designer")
+      Projects::InstantJoin.call(project: ctx[:project].reload, user: ctx[:joiner], participant_role: "UI/UX designer")
     }.to raise_error(DomainError)
 
     Tasks::Submit.call(task: ctx[:task], user: ctx[:participant], body: "Work", links: [], signed_blob_ids: [], enqueue_review: false)
