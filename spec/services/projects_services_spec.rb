@@ -140,6 +140,41 @@ RSpec.describe "Projects services" do
       expect { Projects::Confirm.call(project: follow_up, user: user) }.not_to raise_error
       expect(follow_up.reload.status).to eq(Project::STATUS_ACTIVE)
     end
+
+    it "lets a team creator confirm another team project" do
+      creator = create_onboarded_adult(email: "many-teams@example.com")
+      organization = create_organization(name: "Many Teams #{SecureRandom.hex(2)}")
+      create_membership(organization: organization, user: creator, role: OrganizationMembership::ADMIN)
+      Credits::GrantOrganizationTrial.call(user: creator, organization: organization)
+      program = create_program(organization: organization)
+
+      first = with_ends_on!(Projects::CreateDraft.call(
+        user: creator,
+        workspace: organization.workspace,
+        title: "Cohort A",
+        mode: "team",
+        joining_mode: "invite_only",
+        capacity: 2,
+        roles_needed: [ "UI/UX designer" ],
+        program_id: program.id
+      ))
+      Projects::Confirm.call(project: first, user: creator)
+
+      second = with_ends_on!(Projects::CreateDraft.call(
+        user: creator,
+        workspace: organization.workspace,
+        title: "Cohort B",
+        mode: "team",
+        joining_mode: "invite_only",
+        capacity: 2,
+        roles_needed: [ "UI/UX designer" ],
+        program_id: program.id
+      ))
+
+      expect { Projects::Confirm.call(project: second, user: creator) }.not_to raise_error
+      expect(second.reload.status).to eq(Project::STATUS_ACTIVE)
+      expect(ProjectMembership.active_participation?(creator)).to be(false)
+    end
   end
 
   describe Projects::CreateDraft do

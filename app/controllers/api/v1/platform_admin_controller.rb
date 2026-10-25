@@ -7,6 +7,9 @@ module Api
         suspend destroy_user cancel_deletion credits refund upgrade_request
         hide_review remove_message archive_project inspect_file date_of_birth
         correct_ai_review start_impersonation
+        provision_user import_users provision_organization
+        provision_project update_project duplicate_project
+        add_project_member remove_project_member
       ].freeze
 
       before_action :require_platform_admin
@@ -157,6 +160,120 @@ module Api
         head :no_content
       end
 
+      def organizations
+        records = Organization.order(:name).limit(200)
+        render json: {
+          organizations: records.map { |organization|
+            { id: organization.id, name: organization.name, workspace_status: organization.workspace_status }
+          }
+        }
+      end
+
+      def organization
+        organization = Organization.find(params[:id])
+        render json: { organization: organization_detail(organization) }
+      end
+
+      def provision_user
+        require_reason!
+        result = PlatformAdmin::ProvisionAccount.call!(
+          actor: current_user,
+          email: params[:email],
+          organization_id: params[:organization_id],
+          role: params[:role],
+          reason: params[:reason]
+        )
+        render json: result, status: result[:status] == "created" ? :created : :ok
+      end
+
+      def import_users
+        require_reason!
+        result = PlatformAdmin::ImportAccounts.call!(
+          actor: current_user,
+          csv_text: params[:csv],
+          organization_id: params[:organization_id],
+          reason: params[:reason]
+        )
+        render json: result
+      end
+
+      def provision_organization
+        require_reason!
+        admin = User.find(params[:admin_user_id])
+        result = Organizations::CreateOrganization.call(user: admin, params: organization_params)
+        PlatformAdmin::Audit.record!(
+          actor: current_user,
+          action: "provision_organization",
+          target: result.organization,
+          reason: params[:reason]
+        )
+        render json: {
+          id: result.organization.id,
+          name: result.organization.name,
+          trial_granted: result.trial_granted
+        }, status: :created
+      end
+
+      def project
+        render json: { project: PlatformAdmin::ProvisionProject.show(Project.find(params[:id])) }
+      end
+
+      def provision_project
+        organization = Organization.find(params[:organization_id])
+        project = PlatformAdmin::ProvisionProject.create!(
+          actor: current_user,
+          organization: organization,
+          params: project_params,
+          reason: params[:reason]
+        )
+        render json: { project: project }, status: :created
+      end
+
+      def update_project
+        project = Project.find(params[:id])
+        updated = PlatformAdmin::ProvisionProject.update!(
+          actor: current_user,
+          project: project,
+          params: project_params,
+          reason: params[:reason]
+        )
+        render json: { project: updated }
+      end
+
+      def duplicate_project
+        project = Project.find(params[:id])
+        copy = PlatformAdmin::ProvisionProject.duplicate!(
+          actor: current_user,
+          project: project,
+          params: project_params,
+          reason: params[:reason]
+        )
+        render json: { project: copy }, status: :created
+      end
+
+      def add_project_member
+        project = Project.find(params[:id])
+        updated = PlatformAdmin::ProvisionProject.add_member!(
+          actor: current_user,
+          project: project,
+          user_id: params[:user_id],
+          participant_role: params[:participant_role],
+          reason: params[:reason]
+        )
+        render json: { project: updated }
+      end
+
+      def remove_project_member
+        project = Project.find(params[:id])
+        updated = PlatformAdmin::ProvisionProject.remove_member!(
+          actor: current_user,
+          project: project,
+          user_id: params[:user_id],
+          reason: params[:reason]
+        )
+        render json: { project: updated }
+      end
+
       private
 
       def require_platform_admin
@@ -178,6 +295,53 @@ module Api
         else
           raise DomainError.new("owner_type must be user or organization", code: "validation_error")
         end
+      end
+
+      def require_reason!
+        return if params[:reason].present?
+
+        raise DomainError.new("A reason is required", code: "validation_error")
+      end
+
+      def organization_params
+        params.permit(
+          :name, :country, :state_region, :timezone,
+          :structure_term_id, :structure_other,
+          :primary_goal_term_id, :primary_goal_other,
+          :website, :logo_url, :expected_participant_range
+        )
+      end
+
+      def project_params
+        params.permit(
+          :creator_id, :title, :summary, :ends_on, :visibility, :mode,
+          :joining_mode, :capacity, :program_id, :program_name,
+          skills: [],
+          roles_needed: [],
+          members: [ :user_id, :participant_role ],
+          tasks: [ :id, :title, :acceptance_criteria, :due_on, :assignee_id ]
+        )
+      end
+
+      def organization_detail(organization)
+        {
+          id: organization.id,
+          name: organization.name,
+          programs: organization.programs.order(:name).map { |program|
+            { id: program.id, name: program.name, status: program.status }
+          },
+          members: organization.organization_memberships.active.includes(user: :profile).map { |membership|
+            user = membership.user
+            {
+              user_id: user.id,
+              email: user.email,
+              display_name: user.profile&.display_name,
+              role: membership.role,
+              onboarded_adult: user.status == User::ACTIVE && user.adult?
+            }
+          },
+          projects: PlatformAdmin::ProvisionProject.list(organization: organization)
+        }
       end
     end
   end

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_10_16_183000) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_24_200100) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
@@ -136,7 +136,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_16_183000) do
     t.index ["status"], name: "index_ai_reviews_on_status"
     t.index ["task_id", "status"], name: "index_ai_reviews_on_task_id_and_status"
     t.index ["task_id"], name: "index_ai_reviews_on_task_id"
-    t.index ["task_id"], name: "index_ai_reviews_one_active_per_task", unique: true, where: "((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('running'::character varying)::text]))"
+    t.index ["task_id"], name: "index_ai_reviews_one_active_per_task", unique: true, where: "((status)::text = ANY ((ARRAY['pending'::character varying, 'running'::character varying])::text[]))"
     t.index ["task_submission_id"], name: "index_ai_reviews_on_task_submission_id"
     t.index ["user_id", "created_at"], name: "index_ai_reviews_on_user_id_and_created_at"
     t.index ["user_id"], name: "index_ai_reviews_on_user_id"
@@ -322,9 +322,9 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_16_183000) do
     t.uuid "accepted_by_user_id"
     t.uuid "created_by_user_id"
     t.string "role", default: "participant", null: false
-    t.datetime "last_sent_at", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.datetime "last_sent_at", null: false
     t.index ["accepted_by_user_id"], name: "index_invitations_on_accepted_by_user_id"
     t.index ["created_by_user_id"], name: "index_invitations_on_created_by_user_id"
     t.index ["organization_id"], name: "index_invitations_on_organization_id"
@@ -685,6 +685,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_16_183000) do
     t.string "slug", null: false
     t.string "visibility", null: false
     t.uuid "program_id"
+    t.boolean "staff_provisioned", default: false, null: false
     t.index ["creator_id", "status"], name: "index_projects_on_creator_id_and_status"
     t.index ["creator_id"], name: "index_projects_on_creator_id"
     t.index ["program_id"], name: "index_projects_on_program_id"
@@ -775,7 +776,6 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_16_183000) do
     t.text "acceptance_criteria"
     t.text "submission_expectations"
     t.date "due_on"
-    t.string "reference_video_url"
     t.string "status", default: "pending", null: false
     t.integer "position", default: 0, null: false
     t.datetime "first_submitted_at"
@@ -787,6 +787,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_16_183000) do
     t.uuid "creator_reviewed_by_id"
     t.datetime "creator_reviewed_at"
     t.datetime "review_overdue_at"
+    t.string "reference_video_url"
     t.index ["assignee_id", "status"], name: "index_tasks_on_assignee_id_and_status"
     t.index ["assignee_id"], name: "index_tasks_on_assignee_id"
     t.index ["creator_reviewed_by_id"], name: "index_tasks_on_creator_reviewed_by_id"
@@ -817,7 +818,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_10_16_183000) do
   end
 
   create_table "users", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
-    t.string "firebase_uid", null: false
+    t.string "firebase_uid"
     t.string "email", null: false
     t.string "status", default: "pending_onboarding", null: false
     t.string "age_status"

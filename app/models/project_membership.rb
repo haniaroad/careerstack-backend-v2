@@ -36,8 +36,15 @@ class ProjectMembership < ApplicationRecord
   scope :participants, -> { where(role: ROLE_PARTICIPANT) }
   scope :creators, -> { where(role: ROLE_CREATOR) }
 
+  # A person may create many team projects. They may be the worker on only one
+  # active project: a participant membership, or a solo project they created.
   def self.active_participation?(user)
-    active.joins(:project).where(projects: { status: Project::STATUS_ACTIVE }).exists?(user_id: user.id)
+    active.joins(:project).where(projects: { status: Project::STATUS_ACTIVE }, user_id: user.id).where(
+      "project_memberships.role = :participant OR (project_memberships.role = :creator AND projects.mode = :solo)",
+      participant: ROLE_PARTICIPANT,
+      creator: ROLE_CREATOR,
+      solo: Project::MODE_SOLO
+    ).exists?
   end
 
   def creator?
