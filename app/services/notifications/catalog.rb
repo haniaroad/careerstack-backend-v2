@@ -53,6 +53,7 @@ module Notifications
       "grace_period_started" => { tier: "realtime_config", category: "project_activity", emit: true },
       "escalation_created" => { tier: "realtime_config", category: "project_activity", emit: true },
       "welcome" => { tier: "realtime_config", category: "project_activity", emit: true },
+      "account_signin" => { tier: "mandatory", category: "account", emit: true },
       "organization_ready" => { tier: "realtime_config", category: "project_activity", emit: true },
       "trial_credits_used_up" => { tier: "realtime_config", category: "project_activity", emit: true },
       "upgrade_request_received" => { tier: "realtime_config", category: "project_activity", emit: true },
@@ -224,6 +225,13 @@ module Notifications
         body: "Your account is ready. Start from Home when you are.",
         cta: "Open Home",
         path: "/"
+      },
+      "account_signin" => {
+        title: "Sign in to CareerStack",
+        heading: "Your CareerStack account is set up",
+        body: "Sign in with Google or request a magic link for this email address. %{context}",
+        cta: "Sign in",
+        path: "/sign-in"
       },
       "organization_ready" => {
         title: "Organization is ready",

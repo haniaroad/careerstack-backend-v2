@@ -32,7 +32,7 @@ class User < ApplicationRecord
   belongs_to :personal_workspace, class_name: "Workspace", optional: true
   belongs_to :active_workspace, class_name: "Workspace", optional: true
 
-  validates :firebase_uid, presence: true, uniqueness: true
+  validates :firebase_uid, uniqueness: true, allow_nil: true
   validates :email, presence: true, uniqueness: true, format: { with: URI::MailTo::EMAIL_REGEXP }
   validates :status, inclusion: { in: STATUSES }
   validates :age_status, inclusion: { in: AGE_STATUSES }, allow_nil: true

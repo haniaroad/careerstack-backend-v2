@@ -20,6 +20,11 @@ module Api
         render json: SessionSerializer.call(user), status: :created
       end
 
+      def provisioned_member
+        user = Onboarding::ProvisionedMember.call(user: current_user, params: provisioned_params)
+        render json: SessionSerializer.call(user), status: :created
+      end
+
       private
 
       def independent_params
@@ -30,6 +35,10 @@ module Api
         params.permit(
           :invitation_token, :terms_accepted, :date_of_birth, *PROFILE_FIELDS, interests: []
         )
+      end
+
+      def provisioned_params
+        params.permit(:terms_accepted, :date_of_birth, *PROFILE_FIELDS, interests: [])
       end
     end
   end
